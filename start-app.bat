@@ -1,0 +1,6 @@
+@echo off
+echo Starting backend server...
+start "Backend" cmd /k "cd backend && npm install && npm start"
+
+echo Starting frontend server...
+start "Frontend" cmd /k "cd frontend && npm install && npm run dev"

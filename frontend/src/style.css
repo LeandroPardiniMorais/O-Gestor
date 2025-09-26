@@ -1,0 +1,117 @@
+/* Paleta de Cores Vortex Projetos - Tema Claro Amigável */
+:root {
+    --cor-fundo: #f8f9fa;           /* Cinza muito claro (bg-light) */
+    --cor-superficie: #ffffff;       /* Branco para cards */
+    --cor-texto-principal: #212529;  /* Preto suave (text-dark) */
+    --cor-texto-secundario: #6c757d; /* Cinza para texto secundário */
+    --cor-destaque: #dc3545;         /* Vermelho "danger" do Bootstrap */
+    --cor-borda: #dee2e6;           /* Cinza claro para bordas */
+}
+
+body {
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto-principal);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex; /* Para centralizar o app-container */
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Garante que o body ocupe a altura total da viewport */
+    margin: 0; /* Remove margem padrão do body */
+}
+
+.app-container { /* A nova "janela" principal */
+    display: flex;
+    width: 95%; /* Largura da janela */
+    max-width: 1600px; /* Largura máxima */
+    height: 90vh; /* Altura da janela */
+    border-radius: 15px; /* Bordas arredondadas */
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); /* Sombra para efeito flutuante */
+    overflow: hidden; /* Garante que o conteúdo interno respeite as bordas arredondadas */
+    background-color: var(--cor-superficie); /* Fundo da janela */
+}
+
+.sidebar {
+    width: 280px;
+    min-height: 100%; /* Ajustado para preencher a altura do app-container */
+    padding: 1.5rem;
+    background-color: var(--cor-superficie);
+    border-right: 1px solid var(--cor-borda);
+    flex-shrink: 0; /* Impede que a sidebar encolha */
+}
+
+.sidebar .nav-link {
+    color: #343a40;
+}
+
+.sidebar .nav-link:hover {
+    background-color: #e9ecef;
+}
+
+.sidebar .nav-link.active {
+    background-color: var(--cor-destaque);
+    color: white;
+}
+
+.sidebar .feather {
+    color: #6c757d;
+}
+
+.sidebar .nav-link.active .feather {
+    color: white;
+}
+
+.content {
+    flex-grow: 1;
+    padding: 2rem;
+    overflow-y: auto; /* Permite rolagem apenas no conteúdo principal */
+    height: 100%; /* Ajustado para preencher a altura do app-container */
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.text-destaque {
+    color: var(--cor-destaque);
+}
+
+.file-upload {
+    border: 2px dashed var(--cor-borda);
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.file-upload:hover {
+    border-color: var(--cor-destaque);
+    background-color: rgba(220, 53, 69, 0.1); /* Hover vermelho suave */
+}
+
+.summary-total {
+    background-color: rgba(220, 53, 69, 0.1); /* Fundo vermelho suave */
+    border-left: 4px solid var(--cor-destaque);
+}
+
+/* Custom Scrollbar */
+.content::-webkit-scrollbar {
+    width: 8px; /* Largura da barra de rolagem */
+}
+
+.content::-webkit-scrollbar-track {
+    background: transparent; /* Fundo transparente */
+}
+
+.content::-webkit-scrollbar-thumb {
+    background-color: rgba(220, 53, 69, 0.3); /* Vermelho suave e transparente */
+    border-radius: 10px; /* Bordas arredondadas */
+    border: 2px solid transparent; /* Borda transparente para o thumb */
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(220, 53, 69, 0.5); /* Um pouco mais visível no hover */
+}
+
+/* Para Firefox */
+.content {
+    scrollbar-width: thin; /* Largura fina */
+    scrollbar-color: rgba(220, 53, 69, 0.3) transparent; /* Thumb e track */
+}
