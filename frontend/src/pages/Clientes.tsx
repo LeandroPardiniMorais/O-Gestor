@@ -1,5 +1,5 @@
-import { Container, Card, Row, Col } from 'react-bootstrap';
-import { Client } from '../App'; // Import Client from App
+﻿import { Container, Card, Row, Col } from 'react-bootstrap';
+import type { Client } from '../App';
 
 interface ClientesProps {
   clients: Client[];
@@ -35,3 +35,5 @@ const Clientes = ({ clients }: ClientesProps) => {
 };
 
 export default Clientes;
+
+

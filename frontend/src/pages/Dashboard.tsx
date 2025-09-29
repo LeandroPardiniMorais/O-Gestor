@@ -1,4 +1,4 @@
-import { Row, Col, Card, ListGroup, Button, Container } from 'react-bootstrap';
+﻿import { Row, Col, Card, ListGroup, Button, Container } from 'react-bootstrap';
 import { DollarSign, FileText, CheckCircle, UserPlus, PlusCircle } from 'react-feather';
 
 const Dashboard = () => {
@@ -13,12 +13,12 @@ const Dashboard = () => {
           </Button>
           <Button variant="danger">
             <PlusCircle className="me-1" size={16} />
-            Cadastrar Orçamento
+            Cadastrar OrÃ§amento
           </Button>
         </div>
       </div>
 
-      {/* Informativos Rápidos */}
+      {/* Informativos RÃ¡pidos */}
       <Row className="g-4 mb-4">
         <Col md={4}>
           <Card className="p-3 rounded-4 h-100">
@@ -40,7 +40,7 @@ const Dashboard = () => {
                 <FileText className="text-warning" />
               </div>
               <div>
-                <h6 className="text-secondary mb-1">Orçamentos Pendentes</h6>
+                <h6 className="text-secondary mb-1">OrÃ§amentos Pendentes</h6>
                 <h4 className="mb-0">8</h4>
               </div>
             </div>
@@ -53,7 +53,7 @@ const Dashboard = () => {
                 <CheckCircle className="text-info" />
               </div>
               <div>
-                <h6 className="text-secondary mb-1">Projetos Concluídos</h6>
+                <h6 className="text-secondary mb-1">Projetos ConcluÃ­dos</h6>
                 <h4 className="mb-0">12</h4>
               </div>
             </div>
@@ -67,7 +67,7 @@ const Dashboard = () => {
         <ListGroup variant="flush">
           <ListGroup.Item as="a" href="#" className="d-flex justify-content-between align-items-center px-0">
             <div>
-              <strong>Projeto "Suporte Monitor"</strong> - Cliente: João Silva
+              <strong>Projeto "Suporte Monitor"</strong> - Cliente: JoÃ£o Silva
             </div>
             <span className="badge bg-danger rounded-pill">Expira Hoje</span>
           </ListGroup.Item>
@@ -90,3 +90,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

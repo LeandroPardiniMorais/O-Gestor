@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Container, Table, Button, Modal, Form, Row, Col } from 'react-bootstrap';
-import { Material } from '../App'; // Import Material from App
+﻿import { useState } from 'react';
+import { Container, Table, Button, Modal, Form, Card } from 'react-bootstrap';
+import type { Material } from '../App';
 
 interface ConfiguracoesProps {
   materials: Material[];
@@ -98,3 +98,5 @@ const Configuracoes = ({ materials, onUpdateMaterials }: ConfiguracoesProps) => 
 };
 
 export default Configuracoes;
+
+

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
+import type { BudgetRecord, BudgetLineProduct, ProductionPlan, ProductionSectorPlan, ProductionSectorKey } from '../types/budget';
 import { Row, Col, Card, Form, Button, Container, ListGroup, Modal } from 'react-bootstrap';
 import { UserPlus, PlusCircle } from 'react-feather';
-import { Client, Material } from '../App'; // Import Client and Material from App
+import type { Client, Material } from '../App'; // Import Client and Material from App
 
 interface Part {
   id: string;
@@ -35,20 +36,72 @@ interface NovoOrcamentoProps {
   clients: Client[];
   onAddNewClient: (newClient: Omit<Client, 'id'>) => void;
   materials: Material[];
+  onCreateBudget: (budget: BudgetRecord) => void;
 }
 
-const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProps) => {
+const NovoOrcamento = ({ clients, onAddNewClient, materials, onCreateBudget }: NovoOrcamentoProps) => {
   const costOfHour = 30; // Custo da hora de impressão
+
+const parseCurrencyValue = (value: string) => {
+  if (!value) return 0;
+  const normalized = value.replace(/[^0-9,.-]/g, '').replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const buildProductionPlan = (
+  resumo: string,
+  inicioPrevisto: string,
+): ProductionPlan => {
+  const formattedInicio = inicioPrevisto ? inicioPrevisto : 'A definir';
+  const defaultSector: ProductionSectorPlan = {
+    status: 'Aguardando',
+    responsavel: 'A definir',
+    inicioPrevisto: formattedInicio,
+    terminoPrevisto: 'A definir',
+  };
+
+  const setores: Record<ProductionSectorKey, ProductionSectorPlan> = {
+    impressao: { ...defaultSector, status: 'Pendente' },
+    acabamento: { ...defaultSector },
+    pintura: { ...defaultSector },
+    montagem: { ...defaultSector },
+    revisao: { ...defaultSector },
+    logistica: { ...defaultSector },
+  };
+
+  return {
+    resumo,
+    setores,
+  };
+};
+
+const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] =>
+  products.map(product => ({
+    id: product.id,
+    nome: product.name || 'Novo produto',
+    quantidade: product.quantity,
+    partes: product.parts.map(part => ({
+      id: part.id,
+      nome: part.name || 'Peça sem título',
+      quantidade: part.quantity,
+      material: part.material,
+      peso: part.peso,
+      tempoImpressao: part.tempoImpressao,
+      custoAdicional: part.custoAdicional,
+      valorCalculado: part.valorPeca,
+    })),
+  }));
 
   // State variables for form fields
   const [nomeServico, setNomeServico] = useState('');
   const [searchTerm, setSearchTerm] = useState(''); // Para o campo de busca do cliente
   const [selectedClient, setSelectedClient] = useState<Client | null>(null); // Cliente selecionado
   const [filteredClients, setFilteredClients] = useState<Client[]>([]); // Clientes filtrados para o autocomplete
-  const [showClientSuggestions, setShowClientSuggestions] = useState(false); // Controla a visibilidade das sugestões
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false); // Controla a visibilidade das sugestÃµes
   const [dataCriacao, setDataCriacao] = useState(new Date().toISOString().split('T')[0]); // Current date, editable
   const [previsaoInicio, setPrevisaoInicio] = useState('');
-  const [previsaoEntrega, setPrevisaoEntrega] = useState(''); // Auto-calculated, disabled
+  const [previsaoEntrega] = useState(''); // Auto-calculated, disabled
   const [formaPagamento, setFormaPagamento] = useState('');
   const [tipoProjeto, setTipoProjeto] = useState('');
   const [enviosProgramados, setEnviosProgramados] = useState<number | ''>(0);
@@ -72,7 +125,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
 
   // Handlers for Products and Parts
   const handleAddProduct = () => {
-    setProducts([...products, { id: Date.now().toString(), name: '', quantity: 1, parts: [] }]);
+    setProducts([...products, { id: Date.now().toString(), name: '', quantity: 1, montagem: 'N/A', pintura: 'N/A', parts: [] }]);
   };
 
   const handleRemoveProduct = (productId: string) => {
@@ -150,8 +203,8 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
     setTotalCustoProdutos(total);
   }, [products]);
 
-  const formasPagamento = ['À Vista', '30 Dias', '60 Dias', 'Personalizado'];
-  const tiposProjeto = ['Desenhar do 0 (R$2500)', 'Escaneamento (R$200/peça)', 'Cliente já possui 3D (R$0)'];
+  const formasPagamento = ['Ã€ Vista', '30 Dias', '60 Dias', 'Personalizado'];
+  const tiposProjeto = ['Desenhar do 0 (R$2500)', 'Escaneamento (R$200/peÃ§a)', 'Cliente jÃ¡ possui 3D (R$0)'];
 
   // Auto-generated placeholder for Orcamento Number
   const getOrcamentoNumber = () => {
@@ -188,7 +241,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
   const handleClientSelect = (client: Client) => {
     setSelectedClient(client);
     setSearchTerm(client.nome); // Atualiza o campo de busca com o nome completo
-    setShowClientSuggestions(false); // Esconde as sugestões
+    setShowClientSuggestions(false); // Esconde as sugestÃµes
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,6 +249,42 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
     setSelectedClient(null);
   };
 
+  const handleGenerateBudget = () => {
+    if (!selectedClient) {
+      window.alert('Selecione um cliente antes de gerar o orçamento.');
+      return;
+    }
+
+    if (products.length === 0) {
+      window.alert('Adicione ao menos um produto ao orçamento.');
+      return;
+    }
+
+    const items = convertProductsToBudgetLines(products);
+    const codigo = getOrcamentoNumber();
+    const descontoValor = parseCurrencyValue(descontoManual);
+    const totalCalculado = Math.max(totalCustoProdutos - descontoValor, 0);
+    const resumo = nomeServico || `Projeto ${codigo}`;
+    const producao = buildProductionPlan(resumo, previsaoInicio);
+
+    const budget: BudgetRecord = {
+      id: crypto.randomUUID(),
+      codigo,
+      clienteId: selectedClient.id,
+      clienteNome: selectedClient.nome,
+      criadoEm: new Date().toISOString(),
+      status: 'enviado',
+      total: Number(totalCalculado.toFixed(2)),
+      desconto: descontoValor ? Number(descontoValor.toFixed(2)) : undefined,
+      observacoes: enderecoEntrega || undefined,
+      resumoDoProjeto: resumo,
+      itens: items,
+      producao,
+    };
+
+    onCreateBudget(budget);
+    window.alert('Orçamento registrado e encaminhado para aprovação do cliente.');
+  };
   const handleSaveNewClient = () => {
     if (newClientName && newClientAddress) {
       onAddNewClient({
@@ -221,27 +310,27 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
   return (
     <Container fluid>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Gerar Novo Orçamento</h2>
+        <h2 className="mb-0">Gerar Novo OrÃ§amento</h2>
       </div>
       <Row className="g-4">
-        {/* Coluna do Formulário */}
+        {/* Coluna do FormulÃ¡rio */}
         <Col lg={7}>
           <Card className="p-4 rounded-4">
-            <h4 className="mb-4 border-bottom pb-2">Dados Gerais do Orçamento</h4>
+            <h4 className="mb-4 border-bottom pb-2">Dados Gerais do OrÃ§amento</h4>
 
             <Form>
               <Row className="g-3 mb-4">
-                {/* Nº Orçamento */}
+                {/* NÂº OrÃ§amento */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>Nº Orçamento</Form.Label>
+                    <Form.Label>NÂº OrÃ§amento</Form.Label>
                     <Form.Control type="text" value={getOrcamentoNumber()} disabled />
                   </Form.Group>
                 </Col>
-                {/* Data de Criação */}
+                {/* Data de CriaÃ§Ã£o */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>Data de Criação</Form.Label>
+                    <Form.Label>Data de CriaÃ§Ã£o</Form.Label>
                     <Form.Control
                       type="date"
                       value={dataCriacao}
@@ -249,13 +338,13 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                     />
                   </Form.Group>
                 </Col>
-                {/* Nome do Serviço */}
+                {/* Nome do ServiÃ§o */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>Nome do Serviço</Form.Label>
+                    <Form.Label>Nome do ServiÃ§o</Form.Label>
                     <Form.Control
                       type="text"
-                      placeholder="Ex: Prototipagem de Peça X"
+                      placeholder="Ex: Prototipagem de PeÃ§a X"
                       value={nomeServico}
                       onChange={(e) => setNomeServico(e.target.value)}
                     />
@@ -263,10 +352,10 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                 </Col>
               </Row>
 
-              {/* Seção Cliente */}
+              {/* SeÃ§Ã£o Cliente */}
               <fieldset className="mb-4">
                 <div className="d-flex justify-content-between align-items-center">
-                  <h5>Informações do Cliente</h5>
+                  <h5>InformaÃ§Ãµes do Cliente</h5>
                   <Button variant="outline-danger" onClick={() => setShowNewClientModal(true)} size="sm" title="Novo Cliente">
                     <UserPlus size={16} />
                   </Button>
@@ -300,10 +389,10 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                   </Col>
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>Endereço de Entrega</Form.Label>
+                      <Form.Label>EndereÃ§o de Entrega</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder="Endereço do cliente"
+                        placeholder="EndereÃ§o do cliente"
                         value={enderecoEntrega}
                         disabled
                       />
@@ -312,13 +401,13 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                 </Row>
               </fieldset>
 
-              {/* Seção Prazos e Pagamento */}
+              {/* SeÃ§Ã£o Prazos e Pagamento */}
               <fieldset className="mb-4">
                 <h5>Prazos e Pagamento</h5>
                 <Row className="g-3">
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>Previsão de Início</Form.Label>
+                      <Form.Label>PrevisÃ£o de InÃ­cio</Form.Label>
                       <Form.Control
                         type="date"
                         value={previsaoInicio}
@@ -328,7 +417,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                   </Col>
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>Previsão de Entrega</Form.Label>
+                      <Form.Label>PrevisÃ£o de Entrega</Form.Label>
                       <Form.Control
                         type="date"
                         value={previsaoEntrega} // This will be calculated
@@ -371,7 +460,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                 </Row>
               </fieldset>
 
-              {/* Seção Outros Detalhes */}
+              {/* SeÃ§Ã£o Outros Detalhes */}
               <fieldset className="mb-4">
                 <h5>Outros Detalhes</h5>
                 <Row className="g-3">
@@ -381,7 +470,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                       <Form.Control
                         type="number"
                         min="0"
-                        placeholder="Número de envios"
+                        placeholder="NÃºmero de envios"
                         value={enviosProgramados}
                         onChange={(e) => setEnviosProgramados(Number(e.target.value))}
                       />
@@ -401,7 +490,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                 </Row>
               </fieldset>
 
-              {/* Seção de Produtos Dinâmicos */}
+              {/* SeÃ§Ã£o de Produtos DinÃ¢micos */}
               <fieldset className="mb-4">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h5>Produtos</h5>
@@ -410,7 +499,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                   </Button>
                 </div>
 
-                {products.map((product, productIndex) => (
+                {products.map((product) => (
                   <Card key={product.id} className="mb-3">
                     <Card.Body>
                       <Row className="g-3 align-items-center">
@@ -445,7 +534,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
 
                       <hr />
 
-                      <h6 className="mt-3">Peças do Produto</h6>
+                      <h6 className="mt-3">PeÃ§as do Produto</h6>
                       {product.parts.map((part) => (
                         <Card key={part.id} className="bg-light p-3 mb-3">
                           <Row className="g-3">
@@ -454,7 +543,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                               <Row className="g-3">
                                 <Col xs={12}>
                                   <Form.Group>
-                                    <Form.Label>Nome da Peça</Form.Label>
+                                    <Form.Label>Nome da PeÃ§a</Form.Label>
                                     <Form.Control
                                       type="text"
                                       placeholder="Ex: Engrenagem principal"
@@ -485,7 +574,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                                 </Col>
                                 <Col md={6}>
                                   <Form.Group>
-                                    <Form.Label>Tempo de Impressão (horas)</Form.Label>
+                                    <Form.Label>Tempo de ImpressÃ£o (horas)</Form.Label>
                                     <Form.Control
                                       type="number"
                                       value={part.tempoImpressao}
@@ -508,9 +597,9 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                                     <Form.Label>Montagem</Form.Label>
                                     <Form.Select value={part.acabamento.montagem} onChange={(e) => handlePartChange(product.id, part.id, 'montagem', e.target.value)}>
                                       <option value="N/A">N/A</option>
-                                      <option value="Fácil">Fácil</option>
-                                      <option value="Médio">Médio</option>
-                                      <option value="Dificil">Difícil</option>
+                                      <option value="FÃ¡cil">FÃ¡cil</option>
+                                      <option value="MÃ©dio">MÃ©dio</option>
+                                      <option value="Dificil">DifÃ­cil</option>
                                     </Form.Select>
                                   </Form.Group>
                                 </Col>
@@ -532,7 +621,7 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                             <Col md={4} className="border-start ps-4">
                               <h6 className="text-muted">Resultados</h6>
                               <Form.Group className="mb-2">
-                                <Form.Label>Valor por Peça</Form.Label>
+                                <Form.Label>Valor por PeÃ§a</Form.Label>
                                 <Form.Control value={`R$ ${part.valorPeca.toFixed(2)}`} disabled />
                               </Form.Group>
                               <Form.Group className="mb-2">
@@ -544,14 +633,14 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
                                 <Form.Control value={`${part.prazo} horas`} disabled />
                               </Form.Group>
                               <Button variant="danger" size="sm" className="w-100 mt-3" onClick={() => handleRemovePart(product.id, part.id)}>
-                                Remover Peça
+                                Remover PeÃ§a
                               </Button>
                             </Col>
                           </Row>
                         </Card>
                       ))}
                       <Button variant="secondary" size="sm" className="mt-2" onClick={() => handleAddPart(product.id)}>
-                        Adicionar Peça
+                        Adicionar PeÃ§a
                       </Button>
                     </Card.Body>
                   </Card>
@@ -565,17 +654,17 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
         <Col lg={5}>
           <div className="position-sticky" style={{ top: '2rem' }}>
             <Card className="p-4 rounded-4">
-              <h4 className="mb-4 border-bottom pb-2">Resumo do Orçamento</h4>
+              <h4 className="mb-4 border-bottom pb-2">Resumo do OrÃ§amento</h4>
               <div className="d-flex flex-column gap-3">
                 <div className="d-flex justify-content-between"><span className="text-secondary">Custo dos Produtos:</span> <span className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</span></div>
-                <div className="d-flex justify-content-between"><span className="text-secondary">Custo de Mão de Obra:</span> <span className="fw-bold">R$ 0,00</span></div>
+                <div className="d-flex justify-content-between"><span className="text-secondary">Custo de MÃ£o de Obra:</span> <span className="fw-bold">R$ 0,00</span></div>
                 <hr className="my-2" />
                 <div className="d-flex justify-content-between fs-5"><strong>Subtotal:</strong> <strong className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</strong></div>
                 <div className="summary-total p-3 mt-3 rounded-3 text-center">
-                  <h3 className="fs-6 mb-1 text-secondary text-uppercase">Total do Orçamento</h3>
+                  <h3 className="fs-6 mb-1 text-secondary text-uppercase">Total do OrÃ§amento</h3>
                   <div className="display-5 fw-bold text-destaque">{`R$ ${totalCustoProdutos.toFixed(2)}`}</div>
                 </div>
-                <Button variant="danger" size="lg" className="mt-3">Gerar Orçamento Final</Button>
+                <Button variant="danger" size="lg" className="mt-3" onClick={handleGenerateBudget}>Gerar Orçamento Final</Button>
               </div>
             </Card>
           </div>
@@ -626,10 +715,10 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Endereço</Form.Label>
+              <Form.Label>EndereÃ§o</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Digite o endereço do cliente"
+                placeholder="Digite o endereÃ§o do cliente"
                 value={newClientAddress}
                 onChange={(e) => setNewClientAddress(e.target.value)}
               />
@@ -668,3 +757,17 @@ const NovoOrcamento = ({ clients, onAddNewClient, materials }: NovoOrcamentoProp
 };
 
 export default NovoOrcamento;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,16 +1,18 @@
-import React from 'react';
+﻿import React from 'react';
 import Sidebar from './Sidebar';
 
-// A 'prop' children é usada para renderizar qualquer conteúdo que for passado dentro do Layout
 const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="app-container">
-      <Sidebar />
-      <main className="content">
-        {children}
-      </main>
+    <div className="app-frame">
+      <div className="app-body">
+        <Sidebar />
+        <main className="content">
+          {children}
+        </main>
+      </div>
     </div>
   );
 };
 
 export default Layout;
+
