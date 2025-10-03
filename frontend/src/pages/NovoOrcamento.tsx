@@ -1,5 +1,5 @@
-﻿import { useState, useEffect } from 'react';
-import type { BudgetRecord, BudgetLineProduct, ProductionPlan, ProductionSectorPlan, ProductionSectorKey } from '../types/budget';
+import { useState, useEffect, useCallback } from 'react';
+import type { BudgetRecord, BudgetLineProduct, ProductionPlan, ProductionSectorPlan, ProductionSectorKey, BudgetPriority } from '../types/budget';
 import { Row, Col, Card, Form, Button, Container, ListGroup, Modal } from 'react-bootstrap';
 import { UserPlus, PlusCircle } from 'react-feather';
 import type { Client, Material } from '../App'; // Import Client and Material from App
@@ -29,6 +29,8 @@ interface Product {
   id: string;
   name: string;
   quantity: number;
+  montagem?: string;
+  pintura?: string;
   parts: Part[];
 }
 
@@ -40,7 +42,7 @@ interface NovoOrcamentoProps {
 }
 
 const NovoOrcamento = ({ clients, onAddNewClient, materials, onCreateBudget }: NovoOrcamentoProps) => {
-  const costOfHour = 30; // Custo da hora de impressão
+  const costOfHour = 30; // Custo da hora de impress�o
 
 const parseCurrencyValue = (value: string) => {
   if (!value) return 0;
@@ -83,7 +85,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
     quantidade: product.quantity,
     partes: product.parts.map(part => ({
       id: part.id,
-      nome: part.name || 'Peça sem título',
+      nome: part.name || 'Pe�a sem t�tulo',
       quantidade: part.quantity,
       material: part.material,
       peso: part.peso,
@@ -98,12 +100,13 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
   const [searchTerm, setSearchTerm] = useState(''); // Para o campo de busca do cliente
   const [selectedClient, setSelectedClient] = useState<Client | null>(null); // Cliente selecionado
   const [filteredClients, setFilteredClients] = useState<Client[]>([]); // Clientes filtrados para o autocomplete
-  const [showClientSuggestions, setShowClientSuggestions] = useState(false); // Controla a visibilidade das sugestÃµes
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false); // Controla a visibilidade das sugestões
   const [dataCriacao, setDataCriacao] = useState(new Date().toISOString().split('T')[0]); // Current date, editable
   const [previsaoInicio, setPrevisaoInicio] = useState('');
-  const [previsaoEntrega] = useState(''); // Auto-calculated, disabled
+  const [previsaoEntrega, setPrevisaoEntrega] = useState(''); // Auto-calculated
   const [formaPagamento, setFormaPagamento] = useState('');
   const [tipoProjeto, setTipoProjeto] = useState('');
+  const [prioridade, setPrioridade] = useState<BudgetPriority>('media');
   const [enviosProgramados, setEnviosProgramados] = useState<number | ''>(0);
   const [descontoManual, setDescontoManual] = useState('');
   const [enderecoEntrega, setEnderecoEntrega] = useState('');
@@ -192,6 +195,13 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
     setProducts(newProducts);
   };
 
+  const calculateTotalHours = useCallback(() => {
+    return products.reduce((total, product) => {
+      const hoursPerItem = product.parts.reduce((sum, part) => sum + (part.tempoImpressao || 0), 0);
+      return total + (hoursPerItem * product.quantity);
+    }, 0);
+  }, [products]);
+
   // Effect to calculate total cost
   useEffect(() => {
     const total = products.reduce((acc, product) => {
@@ -203,8 +213,31 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
     setTotalCustoProdutos(total);
   }, [products]);
 
-  const formasPagamento = ['Ã€ Vista', '30 Dias', '60 Dias', 'Personalizado'];
-  const tiposProjeto = ['Desenhar do 0 (R$2500)', 'Escaneamento (R$200/peÃ§a)', 'Cliente jÃ¡ possui 3D (R$0)'];
+  useEffect(() => {
+    if (!previsaoInicio) {
+      setPrevisaoEntrega('');
+      return;
+    }
+
+    const estimatedHours = calculateTotalHours();
+    const baseline = new Date(`${previsaoInicio}T08:00:00`);
+    if (Number.isNaN(baseline.getTime())) {
+      setPrevisaoEntrega('');
+      return;
+    }
+
+    const hoursWithBuffer = Math.max(estimatedHours, 24);
+    const delivery = new Date(baseline.getTime() + (hoursWithBuffer + 8) * 60 * 60 * 1000);
+    setPrevisaoEntrega(delivery.toISOString().split('T')[0]);
+  }, [previsaoInicio, calculateTotalHours]);
+
+  const formasPagamento = ['À Vista', '30 Dias', '60 Dias', 'Personalizado'];
+  const prioridades: { label: string; value: BudgetPriority }[] = [
+    { label: 'Alta', value: 'alta' },
+    { label: 'Media', value: 'media' },
+    { label: 'Baixa', value: 'baixa' },
+  ];
+  const tiposProjeto = ['Desenhar do 0 (R$2500)', 'Escaneamento (R$200/peça)', 'Cliente já possui 3D (R$0)'];
 
   // Auto-generated placeholder for Orcamento Number
   const getOrcamentoNumber = () => {
@@ -241,7 +274,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
   const handleClientSelect = (client: Client) => {
     setSelectedClient(client);
     setSearchTerm(client.nome); // Atualiza o campo de busca com o nome completo
-    setShowClientSuggestions(false); // Esconde as sugestÃµes
+    setShowClientSuggestions(false); // Esconde as sugestões
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -251,12 +284,12 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
 
   const handleGenerateBudget = () => {
     if (!selectedClient) {
-      window.alert('Selecione um cliente antes de gerar o orçamento.');
+      window.alert('Selecione um cliente antes de gerar o or�amento.');
       return;
     }
 
     if (products.length === 0) {
-      window.alert('Adicione ao menos um produto ao orçamento.');
+      window.alert('Adicione ao menos um produto ao or�amento.');
       return;
     }
 
@@ -266,6 +299,14 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
     const totalCalculado = Math.max(totalCustoProdutos - descontoValor, 0);
     const resumo = nomeServico || `Projeto ${codigo}`;
     const producao = buildProductionPlan(resumo, previsaoInicio);
+    const estimatedHours = calculateTotalHours();
+    const baselineDate = previsaoInicio ? new Date(`${previsaoInicio}T08:00:00`) : new Date();
+    const safeBaseline = Number.isNaN(baselineDate.getTime()) ? new Date() : baselineDate;
+    const inicioIso = safeBaseline.toISOString();
+    const hoursWithBuffer = Math.max(estimatedHours, 24);
+    const entregaCalculada = new Date(safeBaseline.getTime() + (hoursWithBuffer + 8) * 60 * 60 * 1000);
+    const entregaIso = previsaoEntrega ? new Date(`${previsaoEntrega}T18:00:00`).toISOString() : entregaCalculada.toISOString();
+
 
     const budget: BudgetRecord = {
       id: crypto.randomUUID(),
@@ -280,10 +321,15 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
       resumoDoProjeto: resumo,
       itens: items,
       producao,
+      previsaoInicio: inicioIso,
+      previsaoEntrega: entregaIso,
+      prioridade,
+      responsavelProjeto: 'Equipe Comercial',
+      etapaAtual: 'Aguardando aprovacao',
     };
 
     onCreateBudget(budget);
-    window.alert('Orçamento registrado e encaminhado para aprovação do cliente.');
+    window.alert('Or�amento registrado e encaminhado para aprova��o do cliente.');
   };
   const handleSaveNewClient = () => {
     if (newClientName && newClientAddress) {
@@ -310,27 +356,27 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
   return (
     <Container fluid>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Gerar Novo OrÃ§amento</h2>
+        <h2 className="mb-0">Gerar Novo Orçamento</h2>
       </div>
       <Row className="g-4">
-        {/* Coluna do FormulÃ¡rio */}
+        {/* Coluna do Formulário */}
         <Col lg={7}>
           <Card className="p-4 rounded-4">
-            <h4 className="mb-4 border-bottom pb-2">Dados Gerais do OrÃ§amento</h4>
+            <h4 className="mb-4 border-bottom pb-2">Dados Gerais do Orçamento</h4>
 
             <Form>
               <Row className="g-3 mb-4">
-                {/* NÂº OrÃ§amento */}
+                {/* Nº Orçamento */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>NÂº OrÃ§amento</Form.Label>
+                    <Form.Label>Nº Orçamento</Form.Label>
                     <Form.Control type="text" value={getOrcamentoNumber()} disabled />
                   </Form.Group>
                 </Col>
-                {/* Data de CriaÃ§Ã£o */}
+                {/* Data de Criação */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>Data de CriaÃ§Ã£o</Form.Label>
+                    <Form.Label>Data de Criação</Form.Label>
                     <Form.Control
                       type="date"
                       value={dataCriacao}
@@ -338,13 +384,13 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                     />
                   </Form.Group>
                 </Col>
-                {/* Nome do ServiÃ§o */}
+                {/* Nome do Serviço */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>Nome do ServiÃ§o</Form.Label>
+                    <Form.Label>Nome do Serviço</Form.Label>
                     <Form.Control
                       type="text"
-                      placeholder="Ex: Prototipagem de PeÃ§a X"
+                      placeholder="Ex: Prototipagem de Peça X"
                       value={nomeServico}
                       onChange={(e) => setNomeServico(e.target.value)}
                     />
@@ -352,10 +398,10 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                 </Col>
               </Row>
 
-              {/* SeÃ§Ã£o Cliente */}
+              {/* Seção Cliente */}
               <fieldset className="mb-4">
                 <div className="d-flex justify-content-between align-items-center">
-                  <h5>InformaÃ§Ãµes do Cliente</h5>
+                  <h5>Informações do Cliente</h5>
                   <Button variant="outline-danger" onClick={() => setShowNewClientModal(true)} size="sm" title="Novo Cliente">
                     <UserPlus size={16} />
                   </Button>
@@ -389,25 +435,40 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                   </Col>
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>EndereÃ§o de Entrega</Form.Label>
+                      <Form.Label>Endereço de Entrega</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder="EndereÃ§o do cliente"
+                        placeholder="Endereço do cliente"
                         value={enderecoEntrega}
                         disabled
                       />
                     </Form.Group>
                   </Col>
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label>Prioridade</Form.Label>
+                      <Form.Select
+                        value={prioridade}
+                        onChange={(e) => setPrioridade(e.target.value as BudgetPriority)}
+                      >
+                        {prioridades.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
                 </Row>
               </fieldset>
 
-              {/* SeÃ§Ã£o Prazos e Pagamento */}
+              {/* Seção Prazos e Pagamento */}
               <fieldset className="mb-4">
                 <h5>Prazos e Pagamento</h5>
                 <Row className="g-3">
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>PrevisÃ£o de InÃ­cio</Form.Label>
+                      <Form.Label>Previsão de Início</Form.Label>
                       <Form.Control
                         type="date"
                         value={previsaoInicio}
@@ -417,7 +478,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                   </Col>
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>PrevisÃ£o de Entrega</Form.Label>
+                      <Form.Label>Previsão de Entrega</Form.Label>
                       <Form.Control
                         type="date"
                         value={previsaoEntrega} // This will be calculated
@@ -460,7 +521,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                 </Row>
               </fieldset>
 
-              {/* SeÃ§Ã£o Outros Detalhes */}
+              {/* Seção Outros Detalhes */}
               <fieldset className="mb-4">
                 <h5>Outros Detalhes</h5>
                 <Row className="g-3">
@@ -470,7 +531,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                       <Form.Control
                         type="number"
                         min="0"
-                        placeholder="NÃºmero de envios"
+                        placeholder="Número de envios"
                         value={enviosProgramados}
                         onChange={(e) => setEnviosProgramados(Number(e.target.value))}
                       />
@@ -490,7 +551,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                 </Row>
               </fieldset>
 
-              {/* SeÃ§Ã£o de Produtos DinÃ¢micos */}
+              {/* Seção de Produtos Dinâmicos */}
               <fieldset className="mb-4">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h5>Produtos</h5>
@@ -534,7 +595,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
 
                       <hr />
 
-                      <h6 className="mt-3">PeÃ§as do Produto</h6>
+                      <h6 className="mt-3">Peças do Produto</h6>
                       {product.parts.map((part) => (
                         <Card key={part.id} className="bg-light p-3 mb-3">
                           <Row className="g-3">
@@ -543,7 +604,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                               <Row className="g-3">
                                 <Col xs={12}>
                                   <Form.Group>
-                                    <Form.Label>Nome da PeÃ§a</Form.Label>
+                                    <Form.Label>Nome da Peça</Form.Label>
                                     <Form.Control
                                       type="text"
                                       placeholder="Ex: Engrenagem principal"
@@ -574,7 +635,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                                 </Col>
                                 <Col md={6}>
                                   <Form.Group>
-                                    <Form.Label>Tempo de ImpressÃ£o (horas)</Form.Label>
+                                    <Form.Label>Tempo de Impressão (horas)</Form.Label>
                                     <Form.Control
                                       type="number"
                                       value={part.tempoImpressao}
@@ -597,9 +658,9 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                                     <Form.Label>Montagem</Form.Label>
                                     <Form.Select value={part.acabamento.montagem} onChange={(e) => handlePartChange(product.id, part.id, 'montagem', e.target.value)}>
                                       <option value="N/A">N/A</option>
-                                      <option value="FÃ¡cil">FÃ¡cil</option>
-                                      <option value="MÃ©dio">MÃ©dio</option>
-                                      <option value="Dificil">DifÃ­cil</option>
+                                      <option value="Fácil">Fácil</option>
+                                      <option value="Médio">Médio</option>
+                                      <option value="Dificil">Difícil</option>
                                     </Form.Select>
                                   </Form.Group>
                                 </Col>
@@ -621,7 +682,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                             <Col md={4} className="border-start ps-4">
                               <h6 className="text-muted">Resultados</h6>
                               <Form.Group className="mb-2">
-                                <Form.Label>Valor por PeÃ§a</Form.Label>
+                                <Form.Label>Valor por Peça</Form.Label>
                                 <Form.Control value={`R$ ${part.valorPeca.toFixed(2)}`} disabled />
                               </Form.Group>
                               <Form.Group className="mb-2">
@@ -633,14 +694,14 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                                 <Form.Control value={`${part.prazo} horas`} disabled />
                               </Form.Group>
                               <Button variant="danger" size="sm" className="w-100 mt-3" onClick={() => handleRemovePart(product.id, part.id)}>
-                                Remover PeÃ§a
+                                Remover Peça
                               </Button>
                             </Col>
                           </Row>
                         </Card>
                       ))}
                       <Button variant="secondary" size="sm" className="mt-2" onClick={() => handleAddPart(product.id)}>
-                        Adicionar PeÃ§a
+                        Adicionar Peça
                       </Button>
                     </Card.Body>
                   </Card>
@@ -654,17 +715,17 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
         <Col lg={5}>
           <div className="position-sticky" style={{ top: '2rem' }}>
             <Card className="p-4 rounded-4">
-              <h4 className="mb-4 border-bottom pb-2">Resumo do OrÃ§amento</h4>
+              <h4 className="mb-4 border-bottom pb-2">Resumo do Orçamento</h4>
               <div className="d-flex flex-column gap-3">
                 <div className="d-flex justify-content-between"><span className="text-secondary">Custo dos Produtos:</span> <span className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</span></div>
-                <div className="d-flex justify-content-between"><span className="text-secondary">Custo de MÃ£o de Obra:</span> <span className="fw-bold">R$ 0,00</span></div>
+                <div className="d-flex justify-content-between"><span className="text-secondary">Custo de Mão de Obra:</span> <span className="fw-bold">R$ 0,00</span></div>
                 <hr className="my-2" />
                 <div className="d-flex justify-content-between fs-5"><strong>Subtotal:</strong> <strong className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</strong></div>
                 <div className="summary-total p-3 mt-3 rounded-3 text-center">
-                  <h3 className="fs-6 mb-1 text-secondary text-uppercase">Total do OrÃ§amento</h3>
+                  <h3 className="fs-6 mb-1 text-secondary text-uppercase">Total do Orçamento</h3>
                   <div className="display-5 fw-bold text-destaque">{`R$ ${totalCustoProdutos.toFixed(2)}`}</div>
                 </div>
-                <Button variant="danger" size="lg" className="mt-3" onClick={handleGenerateBudget}>Gerar Orçamento Final</Button>
+                <Button variant="danger" size="lg" className="mt-3" onClick={handleGenerateBudget}>Gerar Or�amento Final</Button>
               </div>
             </Card>
           </div>
@@ -715,10 +776,10 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>EndereÃ§o</Form.Label>
+              <Form.Label>Endereço</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Digite o endereÃ§o do cliente"
+                placeholder="Digite o endereço do cliente"
                 value={newClientAddress}
                 onChange={(e) => setNewClientAddress(e.target.value)}
               />
@@ -757,6 +818,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
 };
 
 export default NovoOrcamento;
+
 
 
 

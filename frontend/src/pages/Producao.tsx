@@ -1,4 +1,4 @@
-﻿import { useMemo, useState, type ComponentType } from 'react';
+import { useMemo, useState, type ComponentType } from 'react';
 import {
   Container,
   Row,
@@ -12,7 +12,7 @@ import {
   Stack,
 } from 'react-bootstrap';
 import { ChevronRight, Printer, Scissors, Droplet, Tool, CheckCircle, Truck } from 'react-feather';
-import type { BudgetRecord, ProductionSectorPlan, ProductionSectorKey } from '../types/budget';
+import type { BudgetRecord, ProductionSectorPlan, ProductionSectorKey, BudgetPriority } from '../types/budget';
 
 interface ProducaoProps {
   budgets: BudgetRecord[];
@@ -35,26 +35,38 @@ interface Project {
   progresso: number;
   previsaoEntrega: string;
   responsavel: string;
-  prioridade: 'Alta' | 'Média' | 'Baixa';
+  prioridade: 'Alta' | 'Media' | 'Baixa';
   ultimaAtualizacao: string;
   setores: Record<SectorKey, SectorInfo>;
 }
 
 type SectorKey = ProductionSectorKey;
 
-type QueueStatus = 'Em andamento' | 'Pendente' | 'Concluído';
+type QueueStatus = 'Em andamento' | 'Pendente' | 'Conclu�do';
+
+const priorityLabelMap: Record<BudgetPriority, Project['prioridade']> = {
+  alta: 'Alta',
+  media: 'Media',
+  baixa: 'Baixa',
+};
+
+const priorityVariantMap: Record<Project['prioridade'], string> = {
+  Alta: 'danger',
+  Media: 'warning',
+  Baixa: 'secondary',
+};
 
 const mockProjects: Project[] = [
   {
     id: '1',
     nome: 'Projeto Suporte Monitor',
-    cliente: 'João Silva',
-    etapa: 'Impressão',
+    cliente: 'Jo�o Silva',
+    etapa: 'Impress�o',
     progresso: 65,
     previsaoEntrega: '25/09/2025',
     responsavel: 'Ana Lima',
     prioridade: 'Alta',
-    ultimaAtualizacao: 'Há 2 horas',
+    ultimaAtualizacao: 'H� 2 horas',
     setores: {
       impressao: {
         status: 'Em andamento',
@@ -69,7 +81,7 @@ const mockProjects: Project[] = [
         responsavel: 'Equipe B',
         inicioPrevisto: 'Hoje - 16:00',
         terminoPrevisto: 'Hoje - 17:30',
-        observacoes: 'Necessário lixamento fino e primer cinza.',
+        observacoes: 'Necess�rio lixamento fino e primer cinza.',
       },
       pintura: {
         status: 'Aguardando',
@@ -92,7 +104,7 @@ const mockProjects: Project[] = [
       },
       logistica: {
         status: 'Aguardando',
-        responsavel: 'Equipe Logística',
+        responsavel: 'Equipe Log�stica',
         inicioPrevisto: '27/09 - 14:00',
         terminoPrevisto: '27/09 - 17:00',
       },
@@ -106,19 +118,19 @@ const mockProjects: Project[] = [
     progresso: 45,
     previsaoEntrega: '28/09/2025',
     responsavel: 'Marcelo Tavares',
-    prioridade: 'Média',
-    ultimaAtualizacao: 'Há 30 minutos',
+    prioridade: 'Media',
+    ultimaAtualizacao: 'H� 30 minutos',
     setores: {
       impressao: {
-        status: 'Concluído',
-        responsavel: 'Equipe Impressão',
+        status: 'Conclu�do',
+        responsavel: 'Equipe Impress�o',
         inicioPrevisto: 'Ontem - 07:30',
         terminoPrevisto: 'Ontem - 18:00',
-        observacoes: 'Peças aprovadas no checklist dimensional.',
+        observacoes: 'Pe�as aprovadas no checklist dimensional.',
         percentual: 100,
       },
       acabamento: {
-        status: 'Em preparação',
+        status: 'Em prepara��o',
         responsavel: 'Equipe Acabamento',
         inicioPrevisto: 'Hoje - 13:00',
         terminoPrevisto: 'Hoje - 16:30',
@@ -145,7 +157,7 @@ const mockProjects: Project[] = [
       },
       logistica: {
         status: 'Aguardando',
-        responsavel: 'Equipe Logística',
+        responsavel: 'Equipe Log�stica',
         inicioPrevisto: '28/09 - 15:00',
         terminoPrevisto: '28/09 - 17:00',
       },
@@ -160,14 +172,14 @@ const mockProjects: Project[] = [
     previsaoEntrega: '02/10/2025',
     responsavel: 'Helena Prado',
     prioridade: 'Baixa',
-    ultimaAtualizacao: 'Há 1 hora',
+    ultimaAtualizacao: 'H� 1 hora',
     setores: {
       impressao: {
         status: 'Programado',
-        responsavel: 'João Mendes',
+        responsavel: 'Jo�o Mendes',
         inicioPrevisto: '27/09 - 08:00',
         terminoPrevisto: '27/09 - 18:00',
-        observacoes: 'Teste de protótipo em Nylon com 100% infill.',
+        observacoes: 'Teste de prot�tipo em Nylon com 100% infill.',
       },
       acabamento: {
         status: 'Aguardando',
@@ -180,7 +192,7 @@ const mockProjects: Project[] = [
         responsavel: '-',
         inicioPrevisto: '-',
         terminoPrevisto: '-',
-        observacoes: 'Cliente solicitou peça natural sem pintura.',
+        observacoes: 'Cliente solicitou pe�a natural sem pintura.',
       },
       montagem: {
         status: 'Aguardando',
@@ -196,7 +208,7 @@ const mockProjects: Project[] = [
       },
       logistica: {
         status: 'Aguardando',
-        responsavel: 'Equipe Logística',
+        responsavel: 'Equipe Log�stica',
         inicioPrevisto: '30/09 - 13:00',
         terminoPrevisto: '30/09 - 17:00',
       },
@@ -206,28 +218,28 @@ const mockProjects: Project[] = [
 
 const queue: Array<{ id: string; tarefa: string; responsavel: string; status: QueueStatus }> = [
   { id: 'A', tarefa: 'Preparar arquivos G-code', responsavel: 'Ana Lima', status: 'Em andamento' },
-  { id: 'B', tarefa: 'Separar matéria-prima', responsavel: 'Marcos Araújo', status: 'Pendente' },
-  { id: 'C', tarefa: 'Inspecionar lote anterior', responsavel: 'Lucia Prado', status: 'Concluído' },
+  { id: 'B', tarefa: 'Separar mat�ria-prima', responsavel: 'Marcos Ara�jo', status: 'Pendente' },
+  { id: 'C', tarefa: 'Inspecionar lote anterior', responsavel: 'Lucia Prado', status: 'Conclu�do' },
 ];
 
 const statusVariant: Record<string, string> = {
   'Em andamento': 'warning',
-  'Em preparação': 'info',
+  'Em prepara��o': 'info',
   Pendente: 'secondary',
   Aguardando: 'secondary',
   Programado: 'secondary',
-  Concluído: 'success',
+  Concluido: 'success',
   Dispensado: 'light',
-  'Não iniciado': 'secondary',
+  'N�o iniciado': 'secondary',
 };
 
 const sectorConfig: Array<{ key: SectorKey; label: string; icon: ComponentType<{ size?: number | string }>; description: string }> = [
-  { key: 'impressao', label: 'Impressão', icon: Printer, description: 'Fila de impressoras FDM/SLA' },
+  { key: 'impressao', label: 'Impress�o', icon: Printer, description: 'Fila de impressoras FDM/SLA' },
   { key: 'acabamento', label: 'Acabamento', icon: Scissors, description: 'Corte, lixamento e primer' },
-  { key: 'pintura', label: 'Pintura', icon: Droplet, description: 'Aplicação de tinta e verniz' },
+  { key: 'pintura', label: 'Pintura', icon: Droplet, description: 'Aplica��o de tinta e verniz' },
   { key: 'montagem', label: 'Montagem', icon: Tool, description: 'Assemblagens e testes funcionais' },
-  { key: 'revisao', label: 'Revisão', icon: CheckCircle, description: 'Checklist dimensional e visual' },
-  { key: 'logistica', label: 'Logística', icon: Truck, description: 'Embalo e expedição' },
+  { key: 'revisao', label: 'Revis�o', icon: CheckCircle, description: 'Checklist dimensional e visual' },
+  { key: 'logistica', label: 'Log�stica', icon: Truck, description: 'Embalo e expedi��o' },
 ];
 
 const sectorOrder: SectorKey[] = ['impressao', 'acabamento', 'pintura', 'montagem', 'revisao', 'logistica'];
@@ -251,7 +263,7 @@ const convertBudgetToProject = (budget: BudgetRecord): Project | null => {
   const sectorEntries = sectorOrder.map(key => [key, setores[key]] as const);
 
   const activeEntry =
-    sectorEntries.find(([, sector]) => ['Em andamento', 'Em preparação'].includes(sector?.status ?? '')) ||
+    sectorEntries.find(([, sector]) => ['Em andamento', 'Em prepara��o'].includes(sector?.status ?? '')) ||
     sectorEntries.find(([, sector]) => sector?.status && sector.status !== 'Aguardando');
 
   const progressValues = sectorEntries
@@ -286,7 +298,7 @@ const convertBudgetToProject = (budget: BudgetRecord): Project | null => {
     progresso: progress,
     previsaoEntrega: setoresConvertidos.logistica?.terminoPrevisto ?? 'A definir',
     responsavel: firstResponsible,
-    prioridade: 'Média',
+    prioridade: priorityLabelMap[budget.prioridade ?? 'media'],
     ultimaAtualizacao: formatRelativeDate(budget.criadoEm),
     setores: setoresConvertidos,
   };
@@ -317,7 +329,7 @@ const Producao = ({ budgets }: ProducaoProps) => {
 
   return (
     <Container fluid>
-      <h2 className="mb-4">Produção</h2>
+      <h2 className="mb-4">Produ��o</h2>
       <Row className="g-4">
         {projectsToRender.map(project => (
           <Col md={4} key={project.id}>
@@ -327,14 +339,14 @@ const Producao = ({ budgets }: ProducaoProps) => {
                   <h5 className="mb-1">{project.nome}</h5>
                   <small className="text-secondary">Cliente: {project.cliente}</small>
                 </div>
-                <Badge bg={project.prioridade === 'Alta' ? 'danger' : project.prioridade === 'Média' ? 'warning' : 'secondary'}>
+                <Badge bg={priorityVariantMap[project.prioridade]}>
                   {project.prioridade}
                 </Badge>
               </div>
               <p className="text-secondary mb-2">Etapa atual: {project.etapa}</p>
               <ProgressBar now={project.progresso} label={`${project.progresso}%`} className="mb-3" />
               <div className="d-flex justify-content-between text-secondary small">
-                <span>Responsável: {project.responsavel}</span>
+                <span>Respons�vel: {project.responsavel}</span>
                 <span>Entrega: {project.previsaoEntrega}</span>
               </div>
               <Button
@@ -357,7 +369,7 @@ const Producao = ({ budgets }: ProducaoProps) => {
             <div className="d-flex justify-content-between align-items-center" key={item.id}>
               <div>
                 <h6 className="mb-1">{item.tarefa}</h6>
-                <small className="text-secondary">Responsável: {item.responsavel}</small>
+                <small className="text-secondary">Respons�vel: {item.responsavel}</small>
               </div>
               <Badge bg={statusVariant[item.status] || 'light'}>{item.status}</Badge>
             </div>
@@ -371,7 +383,7 @@ const Producao = ({ budgets }: ProducaoProps) => {
             <Offcanvas.Title>{selectedProject?.nome}</Offcanvas.Title>
             {selectedProject ? (
               <small className="text-secondary">
-                Responsável: {selectedProject.responsavel} · Última atualização: {selectedProject.ultimaAtualizacao}
+                Respons�vel: {selectedProject.responsavel} � �ltima atualiza��o: {selectedProject.ultimaAtualizacao}
               </small>
             ) : null}
           </div>
@@ -389,12 +401,12 @@ const Producao = ({ budgets }: ProducaoProps) => {
                     </div>
                     <div className="d-flex justify-content-between text-secondary">
                       <span>Prioridade</span>
-                      <Badge bg={selectedProject.prioridade === 'Alta' ? 'danger' : selectedProject.prioridade === 'Média' ? 'warning' : 'secondary'}>
+                      <Badge bg={priorityVariantMap[selectedProject.prioridade]}>
                         {selectedProject.prioridade}
                       </Badge>
                     </div>
                     <div className="d-flex justify-content-between text-secondary">
-                      <span>Previsão de entrega</span>
+                      <span>Previs�o de entrega</span>
                       <span className="fw-semibold text-dark">{selectedProject.previsaoEntrega}</span>
                     </div>
                   </Stack>
@@ -421,15 +433,15 @@ const Producao = ({ budgets }: ProducaoProps) => {
                       <p className="text-secondary small mb-3">{description}</p>
                       <Stack gap={2}>
                         <div className="d-flex justify-content-between text-secondary">
-                          <span>Responsável</span>
+                          <span>Respons�vel</span>
                           <span className="fw-semibold text-dark">{sector.responsavel}</span>
                         </div>
                         <div className="d-flex justify-content-between text-secondary">
-                          <span>Início previsto</span>
+                          <span>In�cio previsto</span>
                           <span className="text-dark">{sector.inicioPrevisto}</span>
                         </div>
                         <div className="d-flex justify-content-between text-secondary">
-                          <span>Término previsto</span>
+                          <span>T�rmino previsto</span>
                           <span className="text-dark">{sector.terminoPrevisto}</span>
                         </div>
                         {typeof sector.percentual === 'number' ? (
@@ -440,7 +452,7 @@ const Producao = ({ budgets }: ProducaoProps) => {
                         ) : null}
                         {sector.observacoes ? (
                           <div className="bg-light p-3 rounded">
-                            <span className="text-secondary small d-block">Observações</span>
+                            <span className="text-secondary small d-block">Observa��es</span>
                             <span>{sector.observacoes}</span>
                           </div>
                         ) : null}

@@ -1,4 +1,6 @@
-﻿export type BudgetStatus = 'rascunho' | 'enviado' | 'aceito' | 'recusado';
+export type BudgetStatus = 'rascunho' | 'enviado' | 'aceito' | 'recusado';
+
+export type BudgetPriority = 'baixa' | 'media' | 'alta';
 
 export type ProductionSectorKey =
   | 'impressao'
@@ -56,6 +58,9 @@ export interface BudgetRecord {
   anexos?: string[];
   itens: BudgetLineProduct[];
   producao?: ProductionPlan;
+  previsaoInicio?: string;
+  previsaoEntrega?: string;
+  responsavelProjeto?: string;
+  prioridade?: BudgetPriority;
+  etapaAtual?: string;
 }
-
-
