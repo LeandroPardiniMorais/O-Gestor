@@ -1,52 +1,36 @@
 const express = require('express');
 const cors = require('cors');
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
+const { initDatabase, getPool, closePool } = require('./db');
 
-dotenv.config();
+const clientsRouter = require('./routes/clients');
+const suppliersRouter = require('./routes/suppliers');
+const productsRouter = require('./routes/products');
+const budgetsRouter = require('./routes/budgets');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || '',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-};
-
-let dbPool;
-
-const initDatabase = async () => {
-  if (!dbConfig.database) {
-    console.warn('DB_NAME is not defined. Update your .env file to enable the MySQL connection.');
-    return;
-  }
-
-  try {
-    dbPool = await mysql.createPool(dbConfig);
-    await dbPool.query('SELECT 1');
-    console.log('MySQL connection established successfully.');
-  } catch (error) {
-    console.warn('Unable to connect to MySQL:', error.message);
-  }
-};
-
-initDatabase();
+initDatabase().catch((error) => {
+  console.warn('Initial MySQL connection failed:', error.message);
+});
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/api/clients', clientsRouter);
+app.use('/api/suppliers', suppliersRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/budgets', budgetsRouter);
 
 app.get('/api', (req, res) => {
   res.json({ message: 'Backend da Vortex Projetos esta no ar! Conectado com sucesso.' });
 });
 
 app.get('/api/db/status', async (req, res) => {
-  if (!dbPool) {
+  let pool;
+  try {
+    pool = getPool();
+  } catch (error) {
     return res.status(503).json({
       connected: false,
       error: 'Connection pool not initialised. Check environment variables.',
@@ -55,7 +39,7 @@ app.get('/api/db/status', async (req, res) => {
   }
 
   try {
-    const [rows] = await dbPool.query('SELECT NOW() AS currentTime');
+    const [rows] = await pool.query('SELECT NOW() AS currentTime');
     return res.json({
       connected: true,
       serverTime: rows[0]?.currentTime,
@@ -71,9 +55,7 @@ app.get('/api/db/status', async (req, res) => {
 });
 
 const shutdown = async () => {
-  if (dbPool) {
-    await dbPool.end().catch(() => null);
-  }
+  await closePool();
   process.exit(0);
 };
 
@@ -81,5 +63,5 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
 app.listen(PORT, () => {
-  console.log('Servidor backend rodando na porta ' + PORT);
+  console.log(Servidor backend rodando na porta );
 });

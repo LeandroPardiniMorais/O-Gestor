@@ -43,3 +43,4 @@ pm run lint, tests), attach UI screenshots or API samples for behavior changes, 
 - Duplicate ackend/.env.example to ackend/.env so the API can reach the containerised database.
 - Hit GET /api/db/status while the backend is running to confirm connectivity with MySQL.
 - Personalize o esquema editando mysql/init.sql antes do primeiro docker compose up. Utilize docker compose down -v se precisar recriar as tabelas do zero.
+- API REST disponível:\n  - GET/POST/PUT/DELETE /api/clients\n  - GET/POST/PUT/DELETE /api/suppliers\n  - GET/POST/PUT/DELETE /api/products\n  - GET/POST /api/budgets e PATCH /api/budgets/:id/status

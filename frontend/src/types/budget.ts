@@ -39,6 +39,8 @@ export interface BudgetLineProduct {
   id: string;
   nome: string;
   quantidade: number;
+  valorUnitario?: number;
+  valorTotal?: number;
   montagem?: string;
   pintura?: string;
   partes: BudgetLinePart[];

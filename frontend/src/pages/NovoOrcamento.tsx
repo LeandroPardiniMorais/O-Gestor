@@ -79,21 +79,28 @@ const buildProductionPlan = (
 };
 
 const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] =>
-  products.map(product => ({
-    id: product.id,
-    nome: product.name || 'Novo produto',
-    quantidade: product.quantity,
-    partes: product.parts.map(part => ({
-      id: part.id,
-      nome: part.name || 'Pe�a sem t�tulo',
-      quantidade: part.quantity,
-      material: part.material,
-      peso: part.peso,
-      tempoImpressao: part.tempoImpressao,
-      custoAdicional: part.custoAdicional,
-      valorCalculado: part.valorPeca,
-    })),
-  }));
+  products.map(product => {
+    const unitValue = product.parts.reduce((sum, part) => sum + (part.valorPeca * (part.quantity || 0)), 0);
+    const totalValue = unitValue * product.quantity;
+
+    return {
+      id: product.id,
+      nome: product.name || 'Novo produto',
+      quantidade: product.quantity,
+      valorUnitario: Number(unitValue.toFixed(2)),
+      valorTotal: Number(totalValue.toFixed(2)),
+      partes: product.parts.map(part => ({
+        id: part.id,
+        nome: part.name || 'Pe�a sem t�tulo',
+        quantidade: part.quantity,
+        material: part.material,
+        peso: part.peso,
+        tempoImpressao: part.tempoImpressao,
+        custoAdicional: part.custoAdicional,
+        valorCalculado: part.valorPeca,
+      })),
+    };
+  });
 
   // State variables for form fields
   const [nomeServico, setNomeServico] = useState('');
@@ -205,10 +212,8 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
   // Effect to calculate total cost
   useEffect(() => {
     const total = products.reduce((acc, product) => {
-      const productTotal = product.parts.reduce((partAcc, part) => {
-        return partAcc + (part.valorPeca * part.quantity);
-      }, 0);
-      return acc + (productTotal * product.quantity);
+      const unitValue = product.parts.reduce((sum, part) => sum + (part.valorPeca * (part.quantity || 0)), 0);
+      return acc + (unitValue * product.quantity);
     }, 0);
     setTotalCustoProdutos(total);
   }, [products]);
@@ -560,152 +565,168 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                   </Button>
                 </div>
 
-                {products.map((product) => (
-                  <Card key={product.id} className="mb-3">
-                    <Card.Body>
-                      <Row className="g-3 align-items-center">
-                        <Col md={6}>
-                          <Form.Group>
-                            <Form.Label>Nome do Produto</Form.Label>
-                            <Form.Control
-                              type="text"
-                              placeholder="Ex: Kit de Engrenagens"
-                              value={product.name}
-                              onChange={(e) => handleProductChange(product.id, 'name', e.target.value)}
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col md={4}>
-                          <Form.Group>
-                            <Form.Label>Quantidade</Form.Label>
-                            <Form.Control
-                              type="number"
-                              min="1"
-                              value={product.quantity}
-                              onChange={(e) => handleProductChange(product.id, 'quantity', Number(e.target.value))}
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col md={2} className="text-end">
-                          <Button variant="outline-danger" size="sm" onClick={() => handleRemoveProduct(product.id)}>
-                            Remover
-                          </Button>
-                        </Col>
-                      </Row>
+                {products.map((product) => {
+                  const unitValue = product.parts.reduce((sum, part) => sum + (part.valorPeca * (part.quantity || 0)), 0);
+                  const totalValue = unitValue * product.quantity;
 
-                      <hr />
+                  return (
+                    <Card key={product.id} className="mb-3">
+                      <Card.Body>
+                        <Row className="g-3 align-items-center">
+                          <Col md={6}>
+                            <Form.Group>
+                              <Form.Label>Nome do Produto</Form.Label>
+                              <Form.Control
+                                type="text"
+                                placeholder="Ex: Kit de Engrenagens"
+                                value={product.name}
+                                onChange={(e) => handleProductChange(product.id, 'name', e.target.value)}
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Group>
+                              <Form.Label>Quantidade</Form.Label>
+                              <Form.Control
+                                type="number"
+                                min="1"
+                                value={product.quantity}
+                                onChange={(e) => handleProductChange(product.id, 'quantity', Number(e.target.value))}
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={2} className="text-end">
+                            <Button variant="outline-danger" size="sm" onClick={() => handleRemoveProduct(product.id)}>
+                              Remover
+                            </Button>
+                          </Col>
+                        </Row>
 
-                      <h6 className="mt-3">Peças do Produto</h6>
-                      {product.parts.map((part) => (
-                        <Card key={part.id} className="bg-light p-3 mb-3">
-                          <Row className="g-3">
-                            {/* Coluna de Inputs */}
-                            <Col md={8}>
-                              <Row className="g-3">
-                                <Col xs={12}>
-                                  <Form.Group>
-                                    <Form.Label>Nome da Peça</Form.Label>
-                                    <Form.Control
-                                      type="text"
-                                      placeholder="Ex: Engrenagem principal"
-                                      value={part.name}
-                                      onChange={(e) => handlePartChange(product.id, part.id, 'name', e.target.value)}
-                                    />
-                                  </Form.Group>
-                                </Col>
-                                <Col md={6}>
-                                  <Form.Group>
-                                    <Form.Label>Material</Form.Label>
-                                    <Form.Select value={part.material} onChange={(e) => handlePartChange(product.id, part.id, 'material', e.target.value)}>
-                                      {materials.map(material => (
-                                        <option key={material.id} value={material.name}>{material.name}</option>
-                                      ))}
-                                    </Form.Select>
-                                  </Form.Group>
-                                </Col>
-                                <Col md={6}>
-                                  <Form.Group>
-                                    <Form.Label>Peso (g)</Form.Label>
-                                    <Form.Control
-                                      type="number"
-                                      value={part.peso}
-                                      onChange={(e) => handlePartChange(product.id, part.id, 'peso', Number(e.target.value))}
-                                    />
-                                  </Form.Group>
-                                </Col>
-                                <Col md={6}>
-                                  <Form.Group>
-                                    <Form.Label>Tempo de Impressão (horas)</Form.Label>
-                                    <Form.Control
-                                      type="number"
-                                      value={part.tempoImpressao}
-                                      onChange={(e) => handlePartChange(product.id, part.id, 'tempoImpressao', Number(e.target.value))}
-                                    />
-                                  </Form.Group>
-                                </Col>
-                                <Col md={6}>
-                                  <Form.Group>
-                                    <Form.Label>Custo Adicional (R$)</Form.Label>
-                                    <Form.Control
-                                      type="number"
-                                      value={part.custoAdicional}
-                                      onChange={(e) => handlePartChange(product.id, part.id, 'custoAdicional', Number(e.target.value))}
-                                    />
-                                  </Form.Group>
-                                </Col>
-                                <Col md={6}>
-                                  <Form.Group>
-                                    <Form.Label>Montagem</Form.Label>
-                                    <Form.Select value={part.acabamento.montagem} onChange={(e) => handlePartChange(product.id, part.id, 'montagem', e.target.value)}>
-                                      <option value="N/A">N/A</option>
-                                      <option value="Fácil">Fácil</option>
-                                      <option value="Médio">Médio</option>
-                                      <option value="Dificil">Difícil</option>
-                                    </Form.Select>
-                                  </Form.Group>
-                                </Col>
-                                <Col md={6}>
-                                  <Form.Group>
-                                    <Form.Label>Pintura</Form.Label>
-                                    <Form.Select value={part.acabamento.pintura} onChange={(e) => handlePartChange(product.id, part.id, 'pintura', e.target.value)}>
-                                      <option value="N/A">N/A</option>
-                                      <option value="Lixar">Lixar</option>
-                                      <option value="Primer">Primer</option>
-                                      <option value="Verniz">Verniz</option>
-                                    </Form.Select>
-                                  </Form.Group>
-                                </Col>
-                              </Row>
-                            </Col>
+                        <Row className="g-3 mt-2">
+                          <Col md={6}>
+                            <div className="text-secondary text-uppercase small">Valor unitario</div>
+                            <div className="fw-semibold">{`R$ ${unitValue.toFixed(2)}`}</div>
+                          </Col>
+                          <Col md={6} className="text-md-end">
+                            <div className="text-secondary text-uppercase small">Subtotal do produto</div>
+                            <div className="fw-semibold">{`R$ ${totalValue.toFixed(2)}`}</div>
+                          </Col>
+                        </Row>
 
-                            {/* Coluna de Resultados */}
-                            <Col md={4} className="border-start ps-4">
-                              <h6 className="text-muted">Resultados</h6>
-                              <Form.Group className="mb-2">
-                                <Form.Label>Valor por Peça</Form.Label>
-                                <Form.Control value={`R$ ${part.valorPeca.toFixed(2)}`} disabled />
-                              </Form.Group>
-                              <Form.Group className="mb-2">
-                                <Form.Label>Desconto</Form.Label>
-                                <Form.Control value={`${part.desconto}%`} disabled />
-                              </Form.Group>
-                              <Form.Group>
-                                <Form.Label>Prazo (horas)</Form.Label>
-                                <Form.Control value={`${part.prazo} horas`} disabled />
-                              </Form.Group>
-                              <Button variant="danger" size="sm" className="w-100 mt-3" onClick={() => handleRemovePart(product.id, part.id)}>
-                                Remover Peça
-                              </Button>
-                            </Col>
-                          </Row>
-                        </Card>
-                      ))}
-                      <Button variant="secondary" size="sm" className="mt-2" onClick={() => handleAddPart(product.id)}>
-                        Adicionar Peça
-                      </Button>
-                    </Card.Body>
-                  </Card>
-                ))}
+                        <hr />
+
+                        <h6 className="mt-3">Pecas do Produto</h6>
+                        {product.parts.map((part) => (
+                          <Card key={part.id} className="bg-light p-3 mb-3">
+                            <Row className="g-3">
+                              {/* Coluna de Inputs */}
+                              <Col md={8}>
+                                <Row className="g-3">
+                                  <Col xs={12}>
+                                    <Form.Group>
+                                      <Form.Label>Nome da Peca</Form.Label>
+                                      <Form.Control
+                                        type="text"
+                                        placeholder="Ex: Engrenagem principal"
+                                        value={part.name}
+                                        onChange={(e) => handlePartChange(product.id, part.id, 'name', e.target.value)}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group>
+                                      <Form.Label>Material</Form.Label>
+                                      <Form.Select value={part.material} onChange={(e) => handlePartChange(product.id, part.id, 'material', e.target.value)}>
+                                        {materials.map(material => (
+                                          <option key={material.id} value={material.name}>{material.name}</option>
+                                        ))}
+                                      </Form.Select>
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group>
+                                      <Form.Label>Peso (g)</Form.Label>
+                                      <Form.Control
+                                        type="number"
+                                        value={part.peso}
+                                        onChange={(e) => handlePartChange(product.id, part.id, 'peso', Number(e.target.value))}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group>
+                                      <Form.Label>Tempo de Impressao (horas)</Form.Label>
+                                      <Form.Control
+                                        type="number"
+                                        value={part.tempoImpressao}
+                                        onChange={(e) => handlePartChange(product.id, part.id, 'tempoImpressao', Number(e.target.value))}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group>
+                                      <Form.Label>Custo Adicional (R$)</Form.Label>
+                                      <Form.Control
+                                        type="number"
+                                        value={part.custoAdicional}
+                                        onChange={(e) => handlePartChange(product.id, part.id, 'custoAdicional', Number(e.target.value))}
+                                      />
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group>
+                                      <Form.Label>Montagem</Form.Label>
+                                      <Form.Select value={part.acabamento.montagem} onChange={(e) => handlePartChange(product.id, part.id, 'montagem', e.target.value)}>
+                                        <option value="N/A">N/A</option>
+                                        <option value="Facil">Facil</option>
+                                        <option value="Medio">Medio</option>
+                                        <option value="Dificil">Dificil</option>
+                                      </Form.Select>
+                                    </Form.Group>
+                                  </Col>
+                                  <Col md={6}>
+                                    <Form.Group>
+                                      <Form.Label>Pintura</Form.Label>
+                                      <Form.Select value={part.acabamento.pintura} onChange={(e) => handlePartChange(product.id, part.id, 'pintura', e.target.value)}>
+                                        <option value="N/A">N/A</option>
+                                        <option value="Lixar">Lixar</option>
+                                        <option value="Primer">Primer</option>
+                                        <option value="Verniz">Verniz</option>
+                                      </Form.Select>
+                                    </Form.Group>
+                                  </Col>
+                                </Row>
+                              </Col>
+
+                              {/* Coluna de Resultados */}
+                              <Col md={4} className="border-start ps-4">
+                                <h6 className="text-muted">Resultados</h6>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Valor por Peca</Form.Label>
+                                  <Form.Control value={`R$ ${part.valorPeca.toFixed(2)}`} disabled />
+                                </Form.Group>
+                                <Form.Group className="mb-2">
+                                  <Form.Label>Desconto</Form.Label>
+                                  <Form.Control value={`${part.desconto}%`} disabled />
+                                </Form.Group>
+                                <Form.Group>
+                                  <Form.Label>Prazo (horas)</Form.Label>
+                                  <Form.Control value={`${part.prazo} horas`} disabled />
+                                </Form.Group>
+                                <Button variant="danger" size="sm" className="w-100 mt-3" onClick={() => handleRemovePart(product.id, part.id)}>
+                                  Remover Peca
+                                </Button>
+                              </Col>
+                            </Row>
+                          </Card>
+                        ))}
+                        <Button variant="secondary" size="sm" className="mt-2" onClick={() => handleAddPart(product.id)}>
+                          Adicionar Peca
+                        </Button>
+                      </Card.Body>
+                    </Card>
+                  );
+                })}
               </fieldset>
             </Form>
           </Card>
@@ -719,6 +740,28 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
               <div className="d-flex flex-column gap-3">
                 <div className="d-flex justify-content-between"><span className="text-secondary">Custo dos Produtos:</span> <span className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</span></div>
                 <div className="d-flex justify-content-between"><span className="text-secondary">Custo de Mão de Obra:</span> <span className="fw-bold">R$ 0,00</span></div>
+                {products.length > 0 && (
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-secondary text-uppercase small">Resumo por produto</div>
+                    <div className="mt-2 d-flex flex-column gap-2">
+                      {products.map((product) => {
+                        const unitValue = product.parts.reduce((sum, part) => sum + (part.valorPeca * (part.quantity || 0)), 0);
+                        const totalValue = unitValue * product.quantity;
+                        const label = product.name ? product.name : 'Produto sem nome';
+                        return (
+                          <div key={product.id} className="d-flex flex-column">
+                            <div className="d-flex justify-content-between">
+                              <span>{`${label} x ${product.quantity}`}</span>
+                              <span className="fw-semibold">{`R$ ${totalValue.toFixed(2)}`}</span>
+                            </div>
+                            <span className="text-secondary small">{`R$ ${unitValue.toFixed(2)} por unidade`}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <hr className="my-2" />
                 <div className="d-flex justify-content-between fs-5"><strong>Subtotal:</strong> <strong className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</strong></div>
                 <div className="summary-total p-3 mt-3 rounded-3 text-center">
@@ -818,6 +861,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
 };
 
 export default NovoOrcamento;
+
 
 
 

@@ -5,7 +5,7 @@ CREATE DATABASE IF NOT EXISTS gestor
 USE gestor;
 
 CREATE TABLE IF NOT EXISTS clients (
-  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  id CHAR(36) NOT NULL,
   nome VARCHAR(120) NOT NULL,
   endereco VARCHAR(255) NOT NULL,
   cpf VARCHAR(14) NULL,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS clients (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS suppliers (
-  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  id CHAR(36) NOT NULL,
   nome VARCHAR(150) NOT NULL,
   contato VARCHAR(150) NOT NULL,
   telefone VARCHAR(20) NULL,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS products (
-  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  id CHAR(36) NOT NULL,
   nome VARCHAR(150) NOT NULL,
   categoria VARCHAR(100) NULL,
   estoque INT UNSIGNED NOT NULL DEFAULT 0,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS products (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS budgets (
-  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  id CHAR(36) NOT NULL,
   codigo VARCHAR(32) NOT NULL,
   cliente_id CHAR(36) NOT NULL,
   status ENUM('rascunho','enviado','aceito','recusado') NOT NULL DEFAULT 'rascunho',
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS budgets (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS budget_items (
-  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  id CHAR(36) NOT NULL,
   budget_id CHAR(36) NOT NULL,
   nome VARCHAR(150) NOT NULL,
   quantidade INT UNSIGNED NOT NULL DEFAULT 1,
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS budget_items (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS budget_parts (
-  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  id CHAR(36) NOT NULL,
   item_id CHAR(36) NOT NULL,
   nome VARCHAR(150) NOT NULL,
   quantidade INT UNSIGNED NOT NULL DEFAULT 1,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS budget_parts (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS production_plans (
-  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  id CHAR(36) NOT NULL,
   budget_id CHAR(36) NOT NULL,
   resumo TEXT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS production_plans (
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS production_sectors (
-  id CHAR(36) NOT NULL DEFAULT (UUID()),
+  id CHAR(36) NOT NULL,
   production_plan_id CHAR(36) NOT NULL,
   setor ENUM('impressao','acabamento','pintura','montagem','revisao','logistica') NOT NULL,
   status VARCHAR(60) NOT NULL DEFAULT 'Aguardando',
