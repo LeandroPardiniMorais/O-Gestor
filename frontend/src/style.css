@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     --cor-fundo: #f8f9fa;
     --cor-superficie: #ffffff;
     --cor-texto-principal: #212529;
@@ -24,22 +24,138 @@ body {
     flex-direction: column;
     min-height: 100vh;
     background-color: var(--cor-superficie);
+    --sidebar-width: 280px;
+}
+
+.app-frame.sidebar-collapsed {
+    --sidebar-width: 80px;
 }
 
 .app-body {
     display: flex;
     flex: 1;
-    min-height: 100vh;
+    height: 100vh;
+    width: 100%;
+    box-sizing: border-box;
+    padding-left: var(--sidebar-width);
+    overflow: hidden;
+    transition: padding-left 0.2s ease;
 }
 
 .sidebar {
-    width: 280px;
-    min-height: 100vh;
+    width: var(--sidebar-width);
+    height: 100vh;
     padding: 1.5rem;
     background-color: var(--cor-superficie);
     border-right: 1px solid var(--cor-borda);
     flex-shrink: 0;
     overflow-y: auto;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    transition: width 0.2s ease, padding 0.2s ease;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(220, 53, 69, 0.25) transparent;
+}
+
+.sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background-color: rgba(220, 53, 69, 0.25);
+    border-radius: 10px;
+    border: 2px solid transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(220, 53, 69, 0.4);
+}
+
+.sidebar-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    color: inherit;
+}
+
+.sidebar-brand-compact {
+    display: none;
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: var(--cor-texto-principal);
+}
+
+.sidebar-collapse-toggle {
+    border: 1px solid var(--cor-borda);
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto-principal);
+    border-radius: 999px;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.sidebar-collapse-toggle:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-color: rgba(220, 53, 69, 0.4);
+    color: var(--cor-destaque);
+}
+
+.sidebar.collapsed {
+    padding: 1.5rem 1rem;
+}
+
+.sidebar.collapsed .sidebar-toolbar {
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sidebar.collapsed .sidebar-header {
+    align-items: center;
+}
+
+.sidebar.collapsed .sidebar-brand-full,
+.sidebar.collapsed .sidebar-header small,
+.sidebar.collapsed .sidebar-section-title,
+.sidebar.collapsed .nav-label {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-brand-compact {
+    display: block;
+}
+
+.sidebar.collapsed .sidebar-section-toggle {
+    justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-section-toggle .me-2 {
+    margin-right: 0 !important;
+}
+
+.sidebar.collapsed .sidebar-section-items .nav-link {
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0.55rem;
 }
 
 .sidebar-header h1 {
@@ -96,12 +212,15 @@ body {
     color: inherit;
 }
 
-.content {
-    flex-grow: 1;
-    padding: 2rem;
-    overflow-y: auto;
+.producao-page {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    width: calc(100vw - 280px);
     min-height: 100vh;
-    background-color: var(--cor-fundo);
+    margin: 0;
+    padding: 2rem 2rem 4rem;
+    box-sizing: border-box;
 }
 
 .card {
@@ -150,3 +269,104 @@ body {
     scrollbar-width: thin;
     scrollbar-color: rgba(220, 53, 69, 0.3) transparent;
 }
+
+.card form .form-control,
+.card form .form-select,
+.card form textarea,
+.modal-content .form-control,
+.modal-content .form-select,
+.modal-content textarea,
+.offcanvas-body .form-control,
+.offcanvas-body .form-select,
+.offcanvas-body textarea,
+.producao-card .producao-form-control {
+    border: 1px solid rgba(220, 53, 69, 0.45);
+    background-color: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.card form .form-control:focus,
+.card form .form-select:focus,
+.card form textarea:focus,
+.modal-content .form-control:focus,
+.modal-content .form-select:focus,
+.modal-content textarea:focus,
+.offcanvas-body .form-control:focus,
+.offcanvas-body .form-select:focus,
+.offcanvas-body textarea:focus,
+.producao-card .producao-form-control:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
+    background-color: #fff8f8;
+}
+
+.card form .form-control:disabled,
+.card form .form-select:disabled,
+.card form textarea:disabled,
+.modal-content .form-control:disabled,
+.modal-content .form-select:disabled,
+.modal-content textarea:disabled,
+.offcanvas-body .form-control:disabled,
+.offcanvas-body .form-select:disabled,
+.offcanvas-body textarea:disabled,
+.producao-card .producao-form-control:disabled {
+    background-color: #fdf2f3;
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.card form .input-group-text,
+.modal-content .input-group-text,
+.offcanvas-body .input-group-text,
+.producao-card .input-group-text {
+    background-color: rgba(220, 53, 69, 0.08);
+    border: 1px solid rgba(220, 53, 69, 0.45);
+    color: #dc3545;
+}
+
+.card form .btn-outline-secondary,
+.modal-content .btn-outline-secondary,
+.offcanvas-body .btn-outline-secondary,
+.producao-card .btn-outline-secondary {
+    border-color: rgba(220, 53, 69, 0.3);
+    color: #495057;
+    transition: all 0.2s ease;
+}
+
+.card form .btn-outline-secondary:hover,
+.card form .btn-outline-secondary:focus,
+.modal-content .btn-outline-secondary:hover,
+.modal-content .btn-outline-secondary:focus,
+.offcanvas-body .btn-outline-secondary:hover,
+.offcanvas-body .btn-outline-secondary:focus,
+.producao-card .btn-outline-secondary:hover,
+.producao-card .btn-outline-secondary:focus {
+    border-color: #dc3545;
+    color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.card form .form-control::placeholder,
+.card form textarea::placeholder,
+.modal-content .form-control::placeholder,
+.modal-content textarea::placeholder,
+.offcanvas-body .form-control::placeholder,
+.offcanvas-body textarea::placeholder {
+    color: rgba(73, 80, 87, 0.6);
+}
+
+.card form .form-label,
+.modal-content .form-label,
+.offcanvas-body .form-label {
+    font-weight: 500;
+    color: #343a40;
+}
+
+
+
+
+
+
+
+
+
