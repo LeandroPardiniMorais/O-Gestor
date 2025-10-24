@@ -1,18 +1,27 @@
-﻿import React from 'react';
-import Sidebar from './Sidebar';
+import { useState, type ReactNode } from 'react'
+import Sidebar from './Sidebar'
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
+interface LayoutProps {
+  children: ReactNode
+}
+
+const Layout = ({ children }: LayoutProps) => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => !prev)
+  }
+
   return (
-    <div className="app-frame">
-      <div className="app-body">
-        <Sidebar />
+    <div className={`app-frame${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+      <div className={`app-body${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+        <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
         <main className="content">
           {children}
         </main>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Layout;
-
+export default Layout

@@ -6,6 +6,7 @@ import type { BudgetRecord, BudgetStatus, BudgetPriority } from '../types/budget
 interface OrcamentosProps {
   budgets: BudgetRecord[];
   onUpdateStatus: (budgetId: string, status: BudgetStatus) => void;
+  onGeneratePdf: (budgetId: string) => BudgetRecord | null;
 }
 
 const statusVariant: Record<BudgetStatus, string> = {
@@ -45,6 +46,13 @@ const formatDate = (value: string) => {
   return parsed.toLocaleDateString('pt-BR');
 };
 
+const formatDateTime = (value?: string) => {
+  if (!value) return '-';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString('pt-BR');
+};
+
 const formatCurrency = (value: number) =>
   value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -80,7 +88,7 @@ const deadlineVariant = (budget: BudgetRecord) => {
   return 'info';
 };
 
-const Orcamentos = ({ budgets, onUpdateStatus }: OrcamentosProps) => {
+const Orcamentos = ({ budgets, onUpdateStatus, onGeneratePdf }: OrcamentosProps) => {
   const [statusFilter, setStatusFilter] = useState<'todos' | BudgetStatus>('todos');
   const [query, setQuery] = useState('');
 
@@ -101,6 +109,28 @@ const Orcamentos = ({ budgets, onUpdateStatus }: OrcamentosProps) => {
 
   const handleReject = (id: string) => {
     onUpdateStatus(id, 'recusado');
+  };
+
+  const handleDownloadPdf = (id: string) => {
+    const existing = budgets.find(entry => entry.id === id);
+    let budgetWithPdf = existing && existing.pdfDataUri ? existing : null;
+
+    if (!budgetWithPdf || !budgetWithPdf.pdfDataUri) {
+      const generated = onGeneratePdf(id);
+      if (generated) {
+        budgetWithPdf = generated;
+      }
+    }
+
+    if (!budgetWithPdf || !budgetWithPdf.pdfDataUri) {
+      window.alert('Nao foi possivel gerar o PDF deste orcamento.');
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = budgetWithPdf.pdfDataUri;
+    link.download = budgetWithPdf.pdfFileName ?? `orcamento-${budgetWithPdf.codigo}.pdf`;
+    link.click();
   };
 
   return (
@@ -152,6 +182,7 @@ const Orcamentos = ({ budgets, onUpdateStatus }: OrcamentosProps) => {
               <th>Responsavel</th>
               <th>Etapa</th>
               <th>Criado em</th>
+              <th>PDF</th>
               <th className="text-end">Acoes</th>
             </tr>
           </thead>
@@ -187,6 +218,18 @@ const Orcamentos = ({ budgets, onUpdateStatus }: OrcamentosProps) => {
                 <td>{budget.responsavelProjeto ?? 'A definir'}</td>
                 <td>{budget.etapaAtual ?? 'Planejamento'}</td>
                 <td>{formatDate(budget.criadoEm)}</td>
+                <td>
+                  <div className="d-flex flex-column align-items-start gap-1">
+                    <Button size="sm" variant="outline-danger" onClick={() => handleDownloadPdf(budget.id)}>
+                      {budget.pdfDataUri ? 'Baixar PDF' : 'Gerar PDF'}
+                    </Button>
+                    {budget.pdfGeneratedAt ? (
+                      <small className="text-secondary">
+                        Atualizado em {formatDateTime(budget.pdfGeneratedAt)}
+                      </small>
+                    ) : null}
+                  </div>
+                </td>
                 <td className="text-end">
                   <Stack direction="horizontal" gap={2} className="justify-content-end">
                     <Button

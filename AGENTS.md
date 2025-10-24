@@ -1,46 +1,19 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- ackend/ hosts the Express API; entry point server.js exposes /api health check and reads PORT.
-- rontend/ contains Vite + React/TypeScript; shared UI lives under src/components/, route views under src/pages/, assets in src/assets/.
-- Tests live in ackend/tests/ (Jest + Supertest) and rontend/src/__tests__/ (Vitest), fixtures as JSON beside tests.
-- Global styles sit in rontend/src/App.css, index.css, and style.css; component styles travel with the component.
+The `frontend/` directory houses the Vite + React app. Share reusable UI through `frontend/src/components/`, keep page-level views in `frontend/src/pages/`, and align global styling across `frontend/src/App.css`, `frontend/src/index.css`, and `frontend/src/style.css`. Place Vitest suites in `frontend/src/__tests__/`, keeping test fixtures adjacent to their specs, and store static assets under `frontend/src/assets/`. The Express API lives in `backend/server.js` with integration coverage in `backend/tests/`. Use `docker compose up -d` to bring up any required services before launching either side.
 
 ## Build, Test, and Development Commands
-- cd backend && npm install once per environment; rerun after dependency updates.
-- cd backend && npm start boots the API on port 3001 (override via PORT=4000 npm start).
-- cd frontend && npm install prepares client dependencies.
-- cd frontend && npm run dev serves the app with hot reload; 
-pm run build outputs dist/; 
-pm run preview checks the production bundle.
-- cd frontend && npm run lint enforces project ESLint rules.
+Install dependencies once per workspace: `cd frontend && npm install` and `cd backend && npm install`. Run the web app locally via `npm run dev` inside `frontend/`. Validate quality with `npm run lint`, `npm run test`, and `npm run build && npm run preview` before sharing UI changes. Start the API using `npm start` in `backend/` (set `PORT=4000` if 3001 is occupied) and confirm routes with `npm run test`.
 
 ## Coding Style & Naming Conventions
-- Standardize on two-space indentation and single quotes in JS/TS.
-- Name React components/pages in PascalCase, hooks prefixed with use, utilities in camelCase.
-- Keep shared types in rontend/src/App.tsx until a 	ypes/ module emerges; align with eslint.config.js.
+JavaScript and TypeScript follow 2-space indentation, single quotes, and omit semicolons; avoid auto-formatters that fight the existing lint rules. Use PascalCase for React components and pages, prefix custom hooks with `use`, and prefer camelCase utilities. Surface shared types through `frontend/src/App.tsx` where applicable.
 
 ## Testing Guidelines
-- Frontend tests use Vitest + React Testing Library; name files ComponentName.test.tsx; run cd frontend && npm run test.
-- Backend tests use Jest + Supertest; run cd backend && npm run test; target =80% coverage on critical routes.
-- Mock remote calls with MSW or fetch stubs; keep fixtures as adjacent JSON files.
+Write frontend specs in `frontend/src/__tests__/ComponentName.test.tsx` using Vitest, mocking HTTP traffic with MSW or fetch stubs. Target at least 80% coverage for backend routes via Jest + Supertest in `backend/tests/`. Run `npm run test` within both `frontend/` and `backend/` before opening a pull request.
 
 ## Commit & Pull Request Guidelines
-- Follow Conventional Commits, e.g., eat(frontend): add dashboard cards.
-- Separate backend and frontend work into focused commits when possible.
-- Pull requests should describe intent, list verification steps (
-pm run lint, tests), attach UI screenshots or API samples for behavior changes, and reference issues with Closes #id.
+Adopt Conventional Commits such as `feat(frontend): add dashboard cards`, keeping UI and API updates in separate commits. Pull requests must describe intent, list verification steps (lint, tests, build), link issues with `Closes #id`, and attach screenshots or API samples when relevant. Document new environment variables or configuration changes directly in the PR body so reviewers can update local setups quickly.
 
-## Environment & Configuration Tips
-- API enables CORS globally; tighten allowed origins before production.
-- Frontend expects the API at http://localhost:3001; set VITE_API_URL in .env.local for other hosts.
-- Use start-app.bat in the repo root to launch both servers in dedicated terminals.
-
-## Database & Docker Setup
-- Copy .env.example (root) to .env, then adjust credentials if needed before running Docker Compose.
-- Start the stack with docker compose up -d; MySQL binds to the configured MYSQL_PORT (default 3307) and phpMyAdmin to PHPMYADMIN_PORT (default 8081).
-- Visit http://localhost:8081 (or the port you set) to manage data through phpMyAdmin.
-- Duplicate ackend/.env.example to ackend/.env so the API can reach the containerised database.
-- Hit GET /api/db/status while the backend is running to confirm connectivity with MySQL.
-- Personalize o esquema editando mysql/init.sql antes do primeiro docker compose up. Utilize docker compose down -v se precisar recriar as tabelas do zero.
-- API REST disponível:\n  - GET/POST/PUT/DELETE /api/clients\n  - GET/POST/PUT/DELETE /api/suppliers\n  - GET/POST/PUT/DELETE /api/products\n  - GET/POST /api/budgets e PATCH /api/budgets/:id/status
+## Security & Configuration Tips
+Copy `.env.example` to `.env` and `backend/.env.example` to `backend/.env` before running servers. Adjust `frontend/.env.local` when API ports move, restrict backend CORS origins ahead of production, and verify database health via `GET /api/db/status`. Keep credentials out of version control and rotate tokens shared during testing.

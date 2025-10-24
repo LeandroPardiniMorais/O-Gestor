@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS products (
   nome VARCHAR(150) NOT NULL,
   categoria VARCHAR(100) NULL,
   estoque INT UNSIGNED NOT NULL DEFAULT 0,
+  price DECIMAL(12,2) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
@@ -131,4 +132,52 @@ CREATE TABLE IF NOT EXISTS production_sectors (
   CONSTRAINT fk_production_sectors_plan FOREIGN KEY (production_plan_id) REFERENCES production_plans (id)
     ON UPDATE CASCADE
     ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS supplier_products (
+  id CHAR(36) NOT NULL,
+  supplier_id CHAR(36) NOT NULL,
+  product_id CHAR(36) NOT NULL,
+  currency CHAR(3) NOT NULL DEFAULT 'BRL',
+  reference_code VARCHAR(60) NULL,
+  price DECIMAL(12,2) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_supplier_products_supplier_product (supplier_id, product_id),
+  KEY idx_supplier_products_supplier (supplier_id),
+  KEY idx_supplier_products_product (product_id),
+  CONSTRAINT fk_supplier_products_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+  CONSTRAINT fk_supplier_products_product FOREIGN KEY (product_id) REFERENCES products (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS supplier_purchases (
+  id CHAR(36) NOT NULL,
+  supplier_id CHAR(36) NOT NULL,
+  product_id CHAR(36) NOT NULL,
+  supplier_product_id CHAR(36) NULL,
+  purchase_date DATE NOT NULL,
+  quantity INT UNSIGNED NOT NULL,
+  unit_price DECIMAL(12,2) NOT NULL,
+  total_price DECIMAL(12,2) NOT NULL,
+  notes VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_supplier_purchases_supplier (supplier_id),
+  KEY idx_supplier_purchases_product (product_id),
+  KEY idx_supplier_purchases_supplier_product_date (supplier_id, product_id, purchase_date),
+  CONSTRAINT fk_supplier_purchases_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
+  CONSTRAINT fk_supplier_purchases_product FOREIGN KEY (product_id) REFERENCES products (id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT,
+  CONSTRAINT fk_supplier_purchases_supplier_product FOREIGN KEY (supplier_product_id) REFERENCES supplier_products (id)
+    ON UPDATE CASCADE
+    ON DELETE SET NULL
 ) ENGINE=InnoDB;

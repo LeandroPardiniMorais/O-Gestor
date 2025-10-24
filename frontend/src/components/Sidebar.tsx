@@ -1,7 +1,7 @@
-﻿import { useMemo, useState, type ComponentType } from 'react';
-import { Nav, Collapse } from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
-import { useLocation } from 'react-router-dom';
+import { useMemo, useState, type ComponentType } from 'react'
+import { Nav, Collapse } from 'react-bootstrap'
+import { LinkContainer } from 'react-router-bootstrap'
+import { Link, useLocation } from 'react-router-dom'
 import {
   FileText,
   Activity,
@@ -13,32 +13,38 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
-} from 'react-feather';
+  ChevronLeft,
+} from 'react-feather'
 
 interface MenuItem {
-  to: string;
-  label: string;
-  icon: ComponentType<{ className?: string; size?: string | number }>;
+  to: string
+  label: string
+  icon: ComponentType<{ className?: string; size?: string | number }>
 }
 
 interface MenuSection {
-  id: string;
-  title: string;
-  items: MenuItem[];
+  id: string
+  title: string
+  items: MenuItem[]
 }
 
-const Sidebar = () => {
-  const location = useLocation();
+interface SidebarProps {
+  collapsed: boolean
+  onToggle: () => void
+}
+
+const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+  const location = useLocation()
 
   const sections: MenuSection[] = useMemo(() => (
     [
       {
         id: 'operacao',
-        title: 'Operação',
+        title: 'Operacao',
         items: [
-          { to: '/orcamento/novo', label: 'Novo Orçamento', icon: FileText },
-          { to: '/orcamentos', label: 'Orçamentos', icon: FileText },
-          { to: '/producao', label: 'Produção', icon: Activity },
+          { to: '/orcamento/novo', label: 'Novo Orcamento', icon: FileText },
+          { to: '/orcamentos', label: 'Orcamentos', icon: FileText },
+          { to: '/producao', label: 'Producao', icon: Activity },
           { to: '/prazos', label: 'Prazos', icon: Clock },
         ],
       },
@@ -53,67 +59,81 @@ const Sidebar = () => {
       },
       {
         id: 'analise',
-        title: 'Análises',
+        title: 'Analises',
         items: [
-          { to: '/relatorios', label: 'Relatórios', icon: BarChart2 },
+          { to: '/relatorios', label: 'Relatorios', icon: BarChart2 },
         ],
       },
       {
         id: 'sistema',
         title: 'Sistema',
         items: [
-          { to: '/configuracoes', label: 'Configurações', icon: Settings },
+          { to: '/configuracoes', label: 'Configuracoes', icon: Settings },
         ],
       },
     ]
-  ), []);
+  ), [])
 
   const [openSections, setOpenSections] = useState(() => {
     return sections.reduce<Record<string, boolean>>((acc, section) => {
-      acc[section.id] = true;
-      return acc;
-    }, {});
-  });
+      acc[section.id] = true
+      return acc
+    }, {})
+  })
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path
 
   const toggleSection = (id: string) => {
     setOpenSections(prev => ({
       ...prev,
       [id]: !prev[id],
-    }));
-  };
+    }))
+  }
 
   return (
-    <div className="sidebar d-flex flex-column">
-      <div className="sidebar-header text-center mb-4">
-        <h1 className="fs-4 fw-bold mb-0">Vortex<span className="text-destaque">Projetos</span></h1>
-        <small className="text-secondary">Gestão integrada</small>
+    <div className={`sidebar d-flex flex-column${collapsed ? ' collapsed' : ''}`}>
+      <div className='sidebar-toolbar'>
+        <Link to='/' className='sidebar-header text-decoration-none'>
+          <h1 className='fs-4 fw-bold mb-0 text-reset sidebar-brand-full'>Vortex<span className='text-destaque'>Projetos</span></h1>
+          <span className='sidebar-brand-compact'>VP</span>
+          <small className='text-secondary d-block'>Gestao integrada</small>
+        </Link>
+        <button
+          type='button'
+          className='sidebar-collapse-toggle'
+          onClick={onToggle}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
       </div>
 
-      <Nav className="flex-column gap-3 sidebar-sections">
+      <Nav className='flex-column gap-3 sidebar-sections'>
         {sections.map(section => {
-          const IconToggle = openSections[section.id] ? ChevronDown : ChevronRight;
+          const isSectionOpen = collapsed ? true : openSections[section.id]
+          const IconToggle = isSectionOpen ? ChevronDown : ChevronRight
 
           return (
-            <div className="sidebar-section" key={section.id}>
+            <div className='sidebar-section' key={section.id}>
               <button
-                type="button"
-                className="sidebar-section-toggle"
-                onClick={() => toggleSection(section.id)}
+                type='button'
+                className='sidebar-section-toggle'
+                onClick={() => !collapsed && toggleSection(section.id)}
+                aria-expanded={isSectionOpen}
+                disabled={collapsed}
               >
-                <IconToggle size={16} className="me-2" />
-                <span>{section.title}</span>
+                <IconToggle size={16} className='me-2' />
+                <span className='sidebar-section-title'>{section.title}</span>
               </button>
 
-              <Collapse in={openSections[section.id]}>
+              <Collapse in={isSectionOpen}>
                 <div>
-                  <Nav className="flex-column gap-1 sidebar-section-items">
+                  <Nav className='flex-column gap-1 sidebar-section-items'>
                     {section.items.map(item => (
                       <LinkContainer to={item.to} key={item.to}>
-                        <Nav.Link active={isActive(item.to)}>
-                          <item.icon className="feather" />
-                          {item.label}
+                        <Nav.Link active={isActive(item.to)} title={collapsed ? item.label : undefined}>
+                          <item.icon className='feather' />
+                          <span className='nav-label'>{item.label}</span>
                         </Nav.Link>
                       </LinkContainer>
                     ))}
@@ -121,15 +141,11 @@ const Sidebar = () => {
                 </div>
               </Collapse>
             </div>
-          );
+          )
         })}
       </Nav>
     </div>
-  );
-};
+  )
+}
 
-export default Sidebar;
-
-
-
-
+export default Sidebar

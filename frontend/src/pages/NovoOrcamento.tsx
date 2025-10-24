@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { BudgetRecord, BudgetLineProduct, ProductionPlan, ProductionSectorPlan, ProductionSectorKey, BudgetPriority } from '../types/budget';
 import { Row, Col, Card, Form, Button, Container, ListGroup, Modal } from 'react-bootstrap';
 import { UserPlus, PlusCircle } from 'react-feather';
-import type { Client, Material } from '../App'; // Import Client and Material from App
+import type { Client, Material, ServiceFeesConfig } from '../App';
 
 interface Part {
   id: string;
@@ -39,10 +39,11 @@ interface NovoOrcamentoProps {
   onAddNewClient: (newClient: Omit<Client, 'id'>) => void;
   materials: Material[];
   onCreateBudget: (budget: BudgetRecord) => void;
+  serviceFees: ServiceFeesConfig;
 }
 
-const NovoOrcamento = ({ clients, onAddNewClient, materials, onCreateBudget }: NovoOrcamentoProps) => {
-  const costOfHour = 30; // Custo da hora de impress�o
+const NovoOrcamento = ({ clients, onAddNewClient, materials, onCreateBudget, serviceFees }: NovoOrcamentoProps) => {
+  const costOfHour = 30; // Custo da hora de impressão
 
 const parseCurrencyValue = (value: string) => {
   if (!value) return 0;
@@ -91,7 +92,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
       valorTotal: Number(totalValue.toFixed(2)),
       partes: product.parts.map(part => ({
         id: part.id,
-        nome: part.name || 'Pe�a sem t�tulo',
+        nome: part.name || 'Peça sem título',
         quantidade: part.quantity,
         material: part.material,
         peso: part.peso,
@@ -107,20 +108,23 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
   const [searchTerm, setSearchTerm] = useState(''); // Para o campo de busca do cliente
   const [selectedClient, setSelectedClient] = useState<Client | null>(null); // Cliente selecionado
   const [filteredClients, setFilteredClients] = useState<Client[]>([]); // Clientes filtrados para o autocomplete
-  const [showClientSuggestions, setShowClientSuggestions] = useState(false); // Controla a visibilidade das sugestões
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false); // Controla a visibilidade das sugestÃµes
   const [dataCriacao, setDataCriacao] = useState(new Date().toISOString().split('T')[0]); // Current date, editable
   const [previsaoInicio, setPrevisaoInicio] = useState('');
   const [previsaoEntrega, setPrevisaoEntrega] = useState(''); // Auto-calculated
   const [formaPagamento, setFormaPagamento] = useState('');
+  const [formaPagamentoPersonalizada, setFormaPagamentoPersonalizada] = useState('');
   const [tipoProjeto, setTipoProjeto] = useState('');
   const [prioridade, setPrioridade] = useState<BudgetPriority>('media');
   const [enviosProgramados, setEnviosProgramados] = useState<number | ''>(0);
   const [descontoManual, setDescontoManual] = useState('');
   const [enderecoEntrega, setEnderecoEntrega] = useState('');
+  const [observacoesOrcamento, setObservacoesOrcamento] = useState('');
 
   // State for products
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCustoProdutos, setTotalCustoProdutos] = useState(0);
+  const [selectedExtraServices, setSelectedExtraServices] = useState<string[]>([]);
 
   // State for new client modal
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -189,7 +193,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
               newPart.acabamento = { ...part.acabamento, [field]: value };
             }
             const material = materials.find(m => m.name === newPart.material);
-            const materialCost = material ? material.cost : 0;
+            const materialCost = material ? material.costPerGram : 0;
             newPart.valorPeca = (newPart.peso * materialCost) + (newPart.tempoImpressao * costOfHour) + newPart.custoAdicional;
             return newPart;
           }
@@ -219,6 +223,12 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
   }, [products]);
 
   useEffect(() => {
+    setSelectedExtraServices(prev =>
+      prev.filter(id => serviceFees.extras.some(extra => extra.id === id)),
+    );
+  }, [serviceFees.extras]);
+
+  useEffect(() => {
     if (!previsaoInicio) {
       setPrevisaoEntrega('');
       return;
@@ -236,13 +246,35 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
     setPrevisaoEntrega(delivery.toISOString().split('T')[0]);
   }, [previsaoInicio, calculateTotalHours]);
 
-  const formasPagamento = ['À Vista', '30 Dias', '60 Dias', 'Personalizado'];
+  const formasPagamento = ['Ã€ Vista', '30 Dias', '60 Dias', 'Personalizado'];
   const prioridades: { label: string; value: BudgetPriority }[] = [
     { label: 'Alta', value: 'alta' },
     { label: 'Media', value: 'media' },
     { label: 'Baixa', value: 'baixa' },
   ];
-  const tiposProjeto = ['Desenhar do 0 (R$2500)', 'Escaneamento (R$200/peça)', 'Cliente já possui 3D (R$0)'];
+  const formatCurrency = (value: number) => `R$ ${value.toFixed(2)}`;
+  const projectTypeOptions = useMemo(
+    () => [
+      { value: 'design', label: `Desenho do zero (${formatCurrency(serviceFees.design)})`, fee: serviceFees.design },
+      { value: 'scan', label: `Escaneamento (${formatCurrency(serviceFees.scan)})`, fee: serviceFees.scan },
+      { value: 'existing', label: `Cliente ja possui 3D (${formatCurrency(0)})`, fee: 0 },
+    ],
+    [serviceFees.design, serviceFees.scan],
+  );
+  const selectedProjectType = projectTypeOptions.find(option => option.value === tipoProjeto) ?? null;
+  const projectServiceFee = selectedProjectType?.fee ?? 0;
+  const customPaymentDescription = formaPagamentoPersonalizada.trim();
+  const selectedExtras = useMemo(
+    () => serviceFees.extras.filter(extra => selectedExtraServices.includes(extra.id)),
+    [serviceFees.extras, selectedExtraServices],
+  );
+  const extrasTotal = useMemo(
+    () => selectedExtras.reduce((sum, extra) => sum + extra.amount, 0),
+    [selectedExtras],
+  );
+  const descontoValor = parseCurrencyValue(descontoManual);
+  const subtotalOrcamento = totalCustoProdutos + projectServiceFee + extrasTotal;
+  const totalComDesconto = Math.max(subtotalOrcamento - descontoValor, 0);
 
   // Auto-generated placeholder for Orcamento Number
   const getOrcamentoNumber = () => {
@@ -279,7 +311,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
   const handleClientSelect = (client: Client) => {
     setSelectedClient(client);
     setSearchTerm(client.nome); // Atualiza o campo de busca com o nome completo
-    setShowClientSuggestions(false); // Esconde as sugestões
+    setShowClientSuggestions(false); // Esconde as sugestÃµes
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -287,22 +319,50 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
     setSelectedClient(null);
   };
 
+  const handleToggleExtraService = (extraId: string) => {
+    setSelectedExtraServices(prev =>
+      prev.includes(extraId) ? prev.filter(id => id !== extraId) : [...prev, extraId],
+    );
+  };
+
   const handleGenerateBudget = () => {
     if (!selectedClient) {
-      window.alert('Selecione um cliente antes de gerar o or�amento.');
+      window.alert('Selecione um cliente antes de gerar o orçamento.');
       return;
     }
 
     if (products.length === 0) {
-      window.alert('Adicione ao menos um produto ao or�amento.');
+      window.alert('Adicione ao menos um produto ao orçamento.');
+      return;
+    }
+
+    if (!formaPagamento) {
+      window.alert('Selecione uma forma de pagamento antes de gerar o orçamento.');
+      return;
+    }
+
+    const personalPaymentNote = formaPagamento === 'Personalizado' ? customPaymentDescription : '';
+    const normalizedObservacoes = observacoesOrcamento.trim();
+    if (formaPagamento === 'Personalizado' && !personalPaymentNote) {
+      window.alert('Descreva como sera o pagamento personalizado antes de gerar o orçamento.');
       return;
     }
 
     const items = convertProductsToBudgetLines(products);
     const codigo = getOrcamentoNumber();
-    const descontoValor = parseCurrencyValue(descontoManual);
-    const totalCalculado = Math.max(totalCustoProdutos - descontoValor, 0);
-    const resumo = nomeServico || `Projeto ${codigo}`;
+    const totalCalculado = totalComDesconto;
+    const extraServiceSelections = selectedExtras.map(extra => ({
+      id: extra.id,
+      nome: extra.name,
+      valor: Number(extra.amount.toFixed(2)),
+    }));
+    const trimmedServiceName = nomeServico.trim();
+    if (!trimmedServiceName) {
+      window.alert('Informe o nome do serviço antes de gerar o orçamento.');
+      return;
+    }
+
+    const resumo = trimmedServiceName;
     const producao = buildProductionPlan(resumo, previsaoInicio);
     const estimatedHours = calculateTotalHours();
     const baselineDate = previsaoInicio ? new Date(`${previsaoInicio}T08:00:00`) : new Date();
@@ -318,12 +378,22 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
       codigo,
       clienteId: selectedClient.id,
       clienteNome: selectedClient.nome,
+      clienteEndereco: selectedClient.endereco || undefined,
+      clienteTelefone: selectedClient.telefone || undefined,
+      clienteEmail: selectedClient.email || undefined,
+      clienteDocumento: selectedClient.cnpj || selectedClient.cpf || undefined,
+      formaPagamento,
+      formaPagamentoPersonalizado: personalPaymentNote || undefined,
       criadoEm: new Date().toISOString(),
       status: 'enviado',
       total: Number(totalCalculado.toFixed(2)),
+      valorServicosProjeto: projectServiceFee ? Number(projectServiceFee.toFixed(2)) : undefined,
+      valorServicosExtras: extrasTotal ? Number(extrasTotal.toFixed(2)) : undefined,
+      servicosAdicionais: extraServiceSelections.length ? extraServiceSelections : undefined,
       desconto: descontoValor ? Number(descontoValor.toFixed(2)) : undefined,
-      observacoes: enderecoEntrega || undefined,
+      observacoes: normalizedObservacoes || undefined,
       resumoDoProjeto: resumo,
+      tipoProjeto: selectedProjectType?.value,
       itens: items,
       producao,
       previsaoInicio: inicioIso,
@@ -331,10 +401,12 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
       prioridade,
       responsavelProjeto: 'Equipe Comercial',
       etapaAtual: 'Aguardando aprovacao',
+      enderecoEntrega: enderecoEntrega || undefined,
+      enviosProgramados: typeof enviosProgramados === 'number' ? enviosProgramados : undefined,
     };
 
     onCreateBudget(budget);
-    window.alert('Or�amento registrado e encaminhado para aprova��o do cliente.');
+    window.alert('Orçamento registrado e encaminhado para aprovação do cliente.');
   };
   const handleSaveNewClient = () => {
     if (newClientName && newClientAddress) {
@@ -361,27 +433,27 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
   return (
     <Container fluid>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Gerar Novo Orçamento</h2>
+        <h2 className="mb-0">Gerar Novo OrÃ§amento</h2>
       </div>
       <Row className="g-4">
-        {/* Coluna do Formulário */}
+        {/* Coluna do FormulÃ¡rio */}
         <Col lg={7}>
           <Card className="p-4 rounded-4">
-            <h4 className="mb-4 border-bottom pb-2">Dados Gerais do Orçamento</h4>
+            <h4 className="mb-4 border-bottom pb-2">Dados Gerais do OrÃ§amento</h4>
 
             <Form>
               <Row className="g-3 mb-4">
-                {/* Nº Orçamento */}
+                {/* NÂº OrÃ§amento */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>Nº Orçamento</Form.Label>
+                    <Form.Label>NÂº OrÃ§amento</Form.Label>
                     <Form.Control type="text" value={getOrcamentoNumber()} disabled />
                   </Form.Group>
                 </Col>
-                {/* Data de Criação */}
+                {/* Data de CriaÃ§Ã£o */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>Data de Criação</Form.Label>
+                    <Form.Label>Data de CriaÃ§Ã£o</Form.Label>
                     <Form.Control
                       type="date"
                       value={dataCriacao}
@@ -389,13 +461,14 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                     />
                   </Form.Group>
                 </Col>
-                {/* Nome do Serviço */}
+                {/* Nome do ServiÃ§o */}
                 <Col md={4}>
                   <Form.Group>
-                    <Form.Label>Nome do Serviço</Form.Label>
+                    <Form.Label>Nome do serviço <span className="text-danger">*</span></Form.Label>
                     <Form.Control
                       type="text"
-                      placeholder="Ex: Prototipagem de Peça X"
+                      placeholder="Ex: Prototipagem de PeÃ§a X"
+                      required aria-required="true"
                       value={nomeServico}
                       onChange={(e) => setNomeServico(e.target.value)}
                     />
@@ -403,10 +476,10 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                 </Col>
               </Row>
 
-              {/* Seção Cliente */}
+              {/* SeÃ§Ã£o Cliente */}
               <fieldset className="mb-4">
                 <div className="d-flex justify-content-between align-items-center">
-                  <h5>Informações do Cliente</h5>
+                  <h5>InformaÃ§Ãµes do Cliente</h5>
                   <Button variant="outline-danger" onClick={() => setShowNewClientModal(true)} size="sm" title="Novo Cliente">
                     <UserPlus size={16} />
                   </Button>
@@ -440,10 +513,10 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                   </Col>
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>Endereço de Entrega</Form.Label>
+                      <Form.Label>EndereÃ§o de Entrega</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder="Endereço do cliente"
+                        placeholder="EndereÃ§o do cliente"
                         value={enderecoEntrega}
                         disabled
                       />
@@ -464,16 +537,34 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                       </Form.Select>
                     </Form.Group>
                   </Col>
+                  {serviceFees.extras.length > 0 && (
+                    <Col md={12}>
+                      <Form.Group>
+                        <Form.Label>Servicos extras</Form.Label>
+                        <div className="d-flex flex-column gap-2">
+                          {serviceFees.extras.map(extra => (
+                            <Form.Check
+                              key={extra.id}
+                              type="checkbox"
+                              label={`${extra.name} (${formatCurrency(extra.amount)})`}
+                              checked={selectedExtraServices.includes(extra.id)}
+                              onChange={() => handleToggleExtraService(extra.id)}
+                            />
+                          ))}
+                        </div>
+                      </Form.Group>
+                    </Col>
+                  )}
                 </Row>
               </fieldset>
 
-              {/* Seção Prazos e Pagamento */}
+              {/* SeÃ§Ã£o Prazos e Pagamento */}
               <fieldset className="mb-4">
                 <h5>Prazos e Pagamento</h5>
                 <Row className="g-3">
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>Previsão de Início</Form.Label>
+                      <Form.Label>PrevisÃ£o de InÃ­cio</Form.Label>
                       <Form.Control
                         type="date"
                         value={previsaoInicio}
@@ -483,7 +574,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                   </Col>
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>Previsão de Entrega</Form.Label>
+                      <Form.Label>PrevisÃ£o de Entrega</Form.Label>
                       <Form.Control
                         type="date"
                         value={previsaoEntrega} // This will be calculated
@@ -496,7 +587,13 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                       <Form.Label>Forma de Pagamento</Form.Label>
                       <Form.Select
                         value={formaPagamento}
-                        onChange={(e) => setFormaPagamento(e.target.value)}
+                        onChange={event => {
+                          const value = event.target.value;
+                          setFormaPagamento(value);
+                          if (value !== 'Personalizado') {
+                            setFormaPagamentoPersonalizada('');
+                          }
+                        }}
                       >
                         <option value="">Selecione</option>
                         {formasPagamento.map((forma) => (
@@ -505,6 +602,26 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                           </option>
                         ))}
                       </Form.Select>
+                      {formaPagamento === 'Personalizado' ? (
+                        <Form.Control
+                          type="text"
+                          className="mt-3"
+                          placeholder="Descreva como sera o pagamento combinado"
+                          value={formaPagamentoPersonalizada}
+                          onChange={event => setFormaPagamentoPersonalizada(event.target.value)}
+                          required
+                        />
+                      ) : null}
+                    </Form.Group>
+                    <Form.Group controlId="observacoesOrcamento" className="mt-3">
+                      <Form.Label>Observacoes para o cliente</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={observacoesOrcamento}
+                        onChange={event => setObservacoesOrcamento(event.target.value)}
+                        placeholder="Mensagem opcional exibida no PDF do orcamento"
+                      />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
@@ -515,18 +632,36 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                         onChange={(e) => setTipoProjeto(e.target.value)}
                       >
                         <option value="">Selecione</option>
-                        {tiposProjeto.map((tipo) => (
-                          <option key={tipo} value={tipo}>
-                            {tipo}
+                        {projectTypeOptions.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
                           </option>
                         ))}
                       </Form.Select>
                     </Form.Group>
                   </Col>
+                  {serviceFees.extras.length > 0 && (
+                    <Col md={12}>
+                      <Form.Group>
+                        <Form.Label>Servicos extras</Form.Label>
+                        <div className="d-flex flex-column gap-2">
+                          {serviceFees.extras.map(extra => (
+                            <Form.Check
+                              key={extra.id}
+                              type="checkbox"
+                              label={`${extra.name} (${formatCurrency(extra.amount)})`}
+                              checked={selectedExtraServices.includes(extra.id)}
+                              onChange={() => handleToggleExtraService(extra.id)}
+                            />
+                          ))}
+                        </div>
+                      </Form.Group>
+                    </Col>
+                  )}
                 </Row>
               </fieldset>
 
-              {/* Seção Outros Detalhes */}
+              {/* SeÃ§Ã£o Outros Detalhes */}
               <fieldset className="mb-4">
                 <h5>Outros Detalhes</h5>
                 <Row className="g-3">
@@ -536,7 +671,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                       <Form.Control
                         type="number"
                         min="0"
-                        placeholder="Número de envios"
+                        placeholder="NÃºmero de envios"
                         value={enviosProgramados}
                         onChange={(e) => setEnviosProgramados(Number(e.target.value))}
                       />
@@ -553,10 +688,28 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                       />
                     </Form.Group>
                   </Col>
+                  {serviceFees.extras.length > 0 && (
+                    <Col md={12}>
+                      <Form.Group>
+                        <Form.Label>Servicos extras</Form.Label>
+                        <div className="d-flex flex-column gap-2">
+                          {serviceFees.extras.map(extra => (
+                            <Form.Check
+                              key={extra.id}
+                              type="checkbox"
+                              label={`${extra.name} (${formatCurrency(extra.amount)})`}
+                              checked={selectedExtraServices.includes(extra.id)}
+                              onChange={() => handleToggleExtraService(extra.id)}
+                            />
+                          ))}
+                        </div>
+                      </Form.Group>
+                    </Col>
+                  )}
                 </Row>
               </fieldset>
 
-              {/* Seção de Produtos Dinâmicos */}
+              {/* SeÃ§Ã£o de Produtos DinÃ¢micos */}
               <fieldset className="mb-4">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h5>Produtos</h5>
@@ -736,10 +889,39 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
         <Col lg={5}>
           <div className="position-sticky" style={{ top: '2rem' }}>
             <Card className="p-4 rounded-4">
-              <h4 className="mb-4 border-bottom pb-2">Resumo do Orçamento</h4>
+              <h4 className="mb-4 border-bottom pb-2">Resumo do OrÃ§amento</h4>
               <div className="d-flex flex-column gap-3">
-                <div className="d-flex justify-content-between"><span className="text-secondary">Custo dos Produtos:</span> <span className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</span></div>
-                <div className="d-flex justify-content-between"><span className="text-secondary">Custo de Mão de Obra:</span> <span className="fw-bold">R$ 0,00</span></div>
+                <div className="d-flex justify-content-between"><span className="text-secondary">Custo dos produtos:</span> <span className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</span></div>
+                {projectServiceFee > 0 && (
+                  <div className="d-flex justify-content-between"><span className="text-secondary">Servico do projeto:</span> <span className="fw-bold">{`R$ ${projectServiceFee.toFixed(2)}`}</span></div>
+                )}
+                {selectedProjectType && (
+                  <div className="text-secondary small">{`Tipo de projeto selecionado: ${selectedProjectType.label}`}</div>
+                )}
+                {selectedExtras.length > 0 && (
+                  <div className="d-flex justify-content-between"><span className="text-secondary">Servicos extras:</span> <span className="fw-bold">{`R$ ${extrasTotal.toFixed(2)}`}</span></div>
+                )}
+                {selectedExtras.length > 0 && (
+                  <div className="text-secondary small">{selectedExtras.map(extra => extra.name).join(', ')}</div>
+                )}
+                {formaPagamento ? (
+                  <div className="d-flex justify-content-between">
+                    <span className="text-secondary">Forma de pagamento:</span>
+                    <span className="fw-bold">{formaPagamento}</span>
+                  </div>
+                ) : null}
+                {formaPagamento === 'Personalizado' && customPaymentDescription ? (
+                  <div className="text-secondary small">{customPaymentDescription}</div>
+                ) : null}
+                {observacoesOrcamento.trim() ? (
+                  <div className="bg-light border rounded-3 p-3">
+                    <div className="text-secondary text-uppercase small mb-1">Observacoes</div>
+                    <div>{observacoesOrcamento.trim()}</div>
+                  </div>
+                ) : null}
+                {descontoValor > 0 && (
+                  <div className="d-flex justify-content-between text-danger"><span className="text-secondary">Desconto manual:</span> <span className="fw-bold">{`- R$ ${descontoValor.toFixed(2)}`}</span></div>
+                )}
                 {products.length > 0 && (
                   <div className="p-3 bg-light rounded-3 border">
                     <div className="text-secondary text-uppercase small">Resumo por produto</div>
@@ -752,8 +934,7 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                           <div key={product.id} className="d-flex flex-column">
                             <div className="d-flex justify-content-between">
                               <span>{`${label} x ${product.quantity}`}</span>
-                              <span className="fw-semibold">{`R$ ${totalValue.toFixed(2)}`}</span>
-                            </div>
+                              <span className="fw-semibold">{`R$ ${totalValue.toFixed(2)}`}</span></div>
                             <span className="text-secondary small">{`R$ ${unitValue.toFixed(2)} por unidade`}</span>
                           </div>
                         );
@@ -763,12 +944,14 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
                 )}
 
                 <hr className="my-2" />
-                <div className="d-flex justify-content-between fs-5"><strong>Subtotal:</strong> <strong className="fw-bold">{`R$ ${totalCustoProdutos.toFixed(2)}`}</strong></div>
+                <div className="d-flex justify-content-between fs-5"><strong>Subtotal:</strong> <strong className="fw-bold">{`R$ ${subtotalOrcamento.toFixed(2)}`}
+                </strong></div>
                 <div className="summary-total p-3 mt-3 rounded-3 text-center">
-                  <h3 className="fs-6 mb-1 text-secondary text-uppercase">Total do Orçamento</h3>
-                  <div className="display-5 fw-bold text-destaque">{`R$ ${totalCustoProdutos.toFixed(2)}`}</div>
+                  <h3 className="fs-6 mb-1 text-secondary text-uppercase">Total do Orcamento</h3>
+                  <div className="display-5 fw-bold text-destaque">{`R$ ${totalComDesconto.toFixed(2)}`}</div>
                 </div>
-                <Button variant="danger" size="lg" className="mt-3" onClick={handleGenerateBudget}>Gerar Or�amento Final</Button>
+
+                <Button variant="danger" size="lg" className="mt-3" onClick={handleGenerateBudget}>Gerar Orçamento Final</Button>
               </div>
             </Card>
           </div>
@@ -819,10 +1002,10 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Endereço</Form.Label>
+              <Form.Label>EndereÃ§o</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="Digite o endereço do cliente"
+                placeholder="Digite o endereÃ§o do cliente"
                 value={newClientAddress}
                 onChange={(e) => setNewClientAddress(e.target.value)}
               />
@@ -861,6 +1044,9 @@ const convertProductsToBudgetLines = (products: Product[]): BudgetLineProduct[] 
 };
 
 export default NovoOrcamento;
+
+
+
 
 
 

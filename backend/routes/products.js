@@ -9,6 +9,7 @@ const mapProduct = (row) => ({
   nome: row.nome,
   categoria: row.categoria,
   estoque: row.estoque,
+  price: row.price !== null ? Number(row.price) : 0,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -24,20 +25,28 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { nome, categoria, estoque } = req.body;
+  const { nome, categoria, estoque, price } = req.body;
 
   if (!nome) {
     return res.status(400).json({ error: 'Field "nome" is required.' });
   }
 
   const normalizedEstoque = Number.isFinite(Number(estoque)) ? Number(estoque) : 0;
+  const normalizedPrice = Number.isFinite(Number(price)) ? Number(price) : null;
+
+  if (normalizedPrice === null) {
+    return res.status(400).json({ error: 'Field "price" is required.' });
+  }
+  if (normalizedPrice < 0) {
+    return res.status(400).json({ error: 'Field "price" must be zero or greater.' });
+  }
 
   try {
     const pool = getPool();
     const id = randomUUID();
     await pool.execute(
-      'INSERT INTO products (id, nome, categoria, estoque) VALUES (?, ?, ?, ?)',
-      [id, nome, categoria || null, normalizedEstoque],
+      'INSERT INTO products (id, nome, categoria, estoque, price) VALUES (?, ?, ?, ?, ?)',
+      [id, nome, categoria || null, normalizedEstoque, normalizedPrice],
     );
     const [rows] = await pool.query('SELECT * FROM products WHERE id = ?', [id]);
     res.status(201).json(mapProduct(rows[0]));
@@ -47,19 +56,27 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { nome, categoria, estoque } = req.body;
+  const { nome, categoria, estoque, price } = req.body;
 
   if (!nome) {
     return res.status(400).json({ error: 'Field "nome" is required.' });
   }
 
   const normalizedEstoque = Number.isFinite(Number(estoque)) ? Number(estoque) : 0;
+  const normalizedPrice = Number.isFinite(Number(price)) ? Number(price) : null;
+
+  if (normalizedPrice === null) {
+    return res.status(400).json({ error: 'Field "price" is required.' });
+  }
+  if (normalizedPrice < 0) {
+    return res.status(400).json({ error: 'Field "price" must be zero or greater.' });
+  }
 
   try {
     const pool = getPool();
     const [result] = await pool.execute(
-      'UPDATE products SET nome = ?, categoria = ?, estoque = ? WHERE id = ?',
-      [nome, categoria || null, normalizedEstoque, req.params.id],
+      'UPDATE products SET nome = ?, categoria = ?, estoque = ?, price = ? WHERE id = ?',
+      [nome, categoria || null, normalizedEstoque, normalizedPrice, req.params.id],
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Product not found' });

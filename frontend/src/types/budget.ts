@@ -46,11 +46,21 @@ export interface BudgetLineProduct {
   partes: BudgetLinePart[];
 }
 
+export interface SelectedServiceFee {
+  id: string;
+  nome: string;
+  valor: number;
+}
+
 export interface BudgetRecord {
   id: string;
   codigo: string;
   clienteId: string;
   clienteNome: string;
+  clienteEndereco?: string;
+  clienteTelefone?: string;
+  clienteEmail?: string;
+  clienteDocumento?: string;
   criadoEm: string;
   status: BudgetStatus;
   total: number;
@@ -65,4 +75,15 @@ export interface BudgetRecord {
   responsavelProjeto?: string;
   prioridade?: BudgetPriority;
   etapaAtual?: string;
+  servicosAdicionais?: SelectedServiceFee[];
+  tipoProjeto?: string;
+  valorServicosProjeto?: number;
+  valorServicosExtras?: number;
+  formaPagamento?: string;
+  formaPagamentoPersonalizado?: string;
+  enderecoEntrega?: string;
+  enviosProgramados?: number;
+  pdfDataUri?: string;
+  pdfFileName?: string;
+  pdfGeneratedAt?: string;
 }

@@ -21,6 +21,11 @@ const getStockVariant = (estoque: number) => {
   return 'success';
 };
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+    Number.isFinite(value) ? value : 0,
+  );
+
 const Produtos = ({ products }: ProdutosProps) => {
   const [query, setQuery] = useState('');
 
@@ -68,6 +73,7 @@ const Produtos = ({ products }: ProdutosProps) => {
                   <th>Produto</th>
                   <th>Categoria</th>
                   <th>Estoque</th>
+                  <th>Preco</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,6 +91,7 @@ const Produtos = ({ products }: ProdutosProps) => {
                         {product.estoque > 0 ? `${product.estoque} unidade(s)` : 'Repor estoque'}
                       </Badge>
                     </td>
+                    <td>{formatCurrency(product.price)}</td>
                   </tr>
                 ))}
               </tbody>
